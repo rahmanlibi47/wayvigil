@@ -1,6 +1,5 @@
 package com.saferoute.navigation
 
-import com.saferoute.data.model.LocationData
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -183,11 +182,11 @@ class SpeedCalculatorVerificationTest {
     @Test
     fun `handles mixed_accuracy_readings`() {
         // Mix of good and poor accuracy
-        speedCalculator.addReading(50f, 0.5f)   // Excellent
-        speedCalculator.addReading(52f, 1.0f)   // Good
-        speedCalculator.addReading(48f, 3.0f)   // Fair
-        speedCalculator.addReading(55f, 8.0f)   // Poor
-        speedCalculator.addReading(51f, 1.0f)   // Good
+        speedCalculator.addReading(50f, 0.5f) // Excellent
+        speedCalculator.addReading(52f, 1.0f) // Good
+        speedCalculator.addReading(48f, 3.0f) // Fair
+        speedCalculator.addReading(55f, 8.0f) // Poor
+        speedCalculator.addReading(51f, 1.0f) // Good
 
         val result = speedCalculator.getFilteredSpeed()
         // Should be weighted toward better accuracy readings

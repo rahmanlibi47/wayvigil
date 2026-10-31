@@ -10,12 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Settings
@@ -104,12 +102,12 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                QuickActionCard(
-                    icon = Icons.Default.LocationOn,
-                    title = "Navigate",
-                    modifier = Modifier.weight(1f),
-                    onClick = onNavigateToMap
-                )
+                    QuickActionCard(
+                        icon = Icons.Default.LocationOn,
+                        title = "Navigate",
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToMap
+                    )
                     QuickActionCard(
                         icon = Icons.Default.Report,
                         title = "Report",

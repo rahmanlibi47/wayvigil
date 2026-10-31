@@ -54,11 +54,11 @@ class SpeedCalculatorTest {
     @Test
     fun `getFilteredSpeed returns weighted average`() {
         // Add multiple readings with varying accuracy
-        speedCalculator.addReading(50f, 1f)  // High quality
-        speedCalculator.addReading(52f, 1f)  // High quality
-        speedCalculator.addReading(48f, 3f)  // Lower quality
-        speedCalculator.addReading(51f, 1f)  // High quality
-        speedCalculator.addReading(49f, 1f)  // High quality
+        speedCalculator.addReading(50f, 1f) // High quality
+        speedCalculator.addReading(52f, 1f) // High quality
+        speedCalculator.addReading(48f, 3f) // Lower quality
+        speedCalculator.addReading(51f, 1f) // High quality
+        speedCalculator.addReading(49f, 1f) // High quality
 
         val result = speedCalculator.getFilteredSpeed()
 

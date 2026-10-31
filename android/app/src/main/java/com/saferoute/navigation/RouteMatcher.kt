@@ -34,9 +34,9 @@ class RouteMatcher(
     }
 
     enum class SuggestedAction {
-        CONTINUE,      // May be temporary, keep current route
-        REROUTE,       // Significantly off route, recalculate
-        CHECK_GPS      // Low confidence, may be GPS error
+        CONTINUE, // May be temporary, keep current route
+        REROUTE, // Significantly off route, recalculate
+        CHECK_GPS // Low confidence, may be GPS error
     }
 
     /**
@@ -145,8 +145,8 @@ class RouteMatcher(
         val deltaLonRad = Math.toRadians(p2.longitude - p1.longitude)
 
         val a = kotlin.math.sin(deltaLatRad / 2) * kotlin.math.sin(deltaLatRad / 2) +
-                kotlin.math.cos(lat1Rad) * kotlin.math.cos(lat2Rad) *
-                kotlin.math.sin(deltaLonRad / 2) * kotlin.math.sin(deltaLonRad / 2)
+            kotlin.math.cos(lat1Rad) * kotlin.math.cos(lat2Rad) *
+            kotlin.math.sin(deltaLonRad / 2) * kotlin.math.sin(deltaLonRad / 2)
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
 
         return (LocationFilter.EARTH_RADIUS_METERS * c).toFloat()
@@ -172,7 +172,7 @@ class RouteMatcher(
 
         val y = kotlin.math.sin(lonDiff) * kotlin.math.cos(lat2)
         val x = kotlin.math.cos(lat1) * kotlin.math.sin(lat2) -
-                kotlin.math.sin(lat1) * kotlin.math.cos(lat2) * kotlin.math.cos(lonDiff)
+            kotlin.math.sin(lat1) * kotlin.math.cos(lat2) * kotlin.math.cos(lonDiff)
 
         var routeHeading = Math.toDegrees(kotlin.math.atan2(y, x)).toFloat()
         if (routeHeading < 0) routeHeading += 360f

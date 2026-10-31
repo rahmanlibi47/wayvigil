@@ -68,11 +68,13 @@ class RouteMatcherTest {
     fun `matchLocationToRoute calculates correct progress fraction`() {
         // Create route from south to north
         val route = Route(
-            polyline = encodePolyline(listOf(
-                LatLng(12.9716, 77.5946),
-                LatLng(12.9766, 77.5946),
-                LatLng(12.9816, 77.5946)
-            )),
+            polyline = encodePolyline(
+                listOf(
+                    LatLng(12.9716, 77.5946),
+                    LatLng(12.9766, 77.5946),
+                    LatLng(12.9816, 77.5946)
+                )
+            ),
             distanceMeters = 2000,
             durationSeconds = 120,
             steps = emptyList()
@@ -101,10 +103,12 @@ class RouteMatcherTest {
     @Test
     fun `matchLocationToRoute considers heading alignment`() {
         val route = Route(
-            polyline = encodePolyline(listOf(
-                LatLng(12.9716, 77.5946),
-                LatLng(12.9816, 77.5946) // Going north
-            )),
+            polyline = encodePolyline(
+                listOf(
+                    LatLng(12.9716, 77.5946),
+                    LatLng(12.9816, 77.5946) // Going north
+                )
+            ),
             distanceMeters = 1000,
             durationSeconds = 60,
             steps = emptyList()

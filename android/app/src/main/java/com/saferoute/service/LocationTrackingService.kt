@@ -64,7 +64,9 @@ class LocationTrackingService : Service() {
     private fun startForeground() {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent,
+            this,
+            0,
+            notificationIntent,
             PendingIntent.FLAG_IMMUTABLE
         )
 

@@ -3,7 +3,6 @@ package com.saferoute.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -177,6 +174,7 @@ fun ReportHazardScreen(
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HazardTypeCard(
@@ -202,17 +200,20 @@ private fun HazardTypeCard(
         onClick = onClick,
         modifier = Modifier.height(80.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
+            containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
-            else
+            } else {
                 MaterialTheme.colorScheme.surfaceVariant
+            }
         ),
         border = if (isSelected) {
             androidx.compose.foundation.BorderStroke(
                 2.dp,
                 MaterialTheme.colorScheme.primary
             )
-        } else null
+        } else {
+            null
+        }
     ) {
         Column(
             modifier = Modifier
@@ -224,20 +225,22 @@ private fun HazardTypeCard(
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
-                tint = if (isSelected)
+                tint = if (isSelected) {
                     MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = hazardName,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isSelected)
+                color = if (isSelected) {
                     MaterialTheme.colorScheme.onPrimaryContainer
-                else
+                } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
     }

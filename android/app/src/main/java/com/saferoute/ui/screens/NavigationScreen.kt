@@ -1,9 +1,7 @@
 package com.saferoute.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,13 +37,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
@@ -399,7 +395,7 @@ private fun ReroutePrompt(
 
 private fun formatDistance(meters: Int): String {
     return when {
-        meters < 1000 -> "${meters} m"
+        meters < 1000 -> "$meters m"
         else -> "${meters / 1000}.${(meters % 1000) / 100} km"
     }
 }
@@ -409,6 +405,6 @@ private fun formatDuration(seconds: Int): String {
     val minutes = (seconds % 3600) / 60
     return when {
         hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes} min"
+        else -> "$minutes min"
     }
 }

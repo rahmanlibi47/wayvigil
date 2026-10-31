@@ -1,7 +1,6 @@
 package com.saferoute.navigation
 
 import com.saferoute.data.model.LocationData
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -86,7 +85,7 @@ class LocationFilter(
 
         val y = kotlin.math.sin(lonDiff) * kotlin.math.cos(lat2)
         val x = kotlin.math.cos(lat1) * kotlin.math.sin(lat2) -
-                kotlin.math.sin(lat1) * kotlin.math.cos(lat2) * kotlin.math.cos(lonDiff)
+            kotlin.math.sin(lat1) * kotlin.math.cos(lat2) * kotlin.math.cos(lonDiff)
 
         var bearing = Math.toDegrees(kotlin.math.atan2(y, x)).toFloat()
         if (bearing < 0) bearing += 360f

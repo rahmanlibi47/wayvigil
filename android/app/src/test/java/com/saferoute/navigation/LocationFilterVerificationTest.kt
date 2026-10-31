@@ -1,7 +1,6 @@
 package com.saferoute.navigation
 
 import com.saferoute.data.model.LocationData
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -122,11 +121,11 @@ class LocationFilterVerificationTest {
         val baseLon = 77.594600
 
         val drifts = listOf(
-            Pair(0.0, 0.0),       // Starting point
-            Pair(0.00001, 0.0),   // ~1m drift
+            Pair(0.0, 0.0), // Starting point
+            Pair(0.00001, 0.0), // ~1m drift
             Pair(0.00002, 0.00001), // ~2.5m drift
-            Pair(-0.00001, 0.0),  // Back toward start
-            Pair(0.0, 0.00002),   // Different direction
+            Pair(-0.00001, 0.0), // Back toward start
+            Pair(0.0, 0.00002) // Different direction
         )
 
         var acceptedCount = 0
@@ -209,9 +208,9 @@ class LocationFilterVerificationTest {
         val locations = listOf(
             LocationData(12.971600, 77.594600, 5f),
             LocationData(12.971650, 77.594600, 8f),
-            LocationData(12.971700, 77.594600, 15f),  // Poorer
+            LocationData(12.971700, 77.594600, 15f), // Poorer
             LocationData(12.971750, 77.594600, 6f),
-            LocationData(12.971800, 77.594600, 4f),
+            LocationData(12.971800, 77.594600, 4f)
         )
 
         var acceptedCount = 0
@@ -242,14 +241,18 @@ class LocationFilterVerificationTest {
     @Test
     fun `handles_large_jump_with_stale_timestamp`() {
         val location1 = LocationData(
-            12.971600, 77.594600, 5f,
+            12.971600,
+            77.594600,
+            5f,
             timestamp = System.currentTimeMillis() - 10000 // 10 seconds ago
         )
         locationFilter.process(location1)
 
         // 500 meter jump but over 10 seconds = reasonable
         val location2 = LocationData(
-            12.976100, 77.594600, 5f,
+            12.976100,
+            77.594600,
+            5f,
             timestamp = System.currentTimeMillis()
         )
         val result = locationFilter.process(location2)

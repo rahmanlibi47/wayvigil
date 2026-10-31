@@ -65,7 +65,8 @@ class ReportHazardViewModel @Inject constructor(
                     mediaUrls = null,
                     deviceId = null,
                     appVersion = context.packageManager.getPackageInfo(
-                        context.packageName, 0
+                        context.packageName,
+                        0
                     ).versionName
                 )
 

@@ -4,7 +4,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.saferoute.data.model.LocationData
 import com.saferoute.data.model.Route
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -27,11 +26,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_location_on_straight_north_south_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.976600, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -41,11 +42,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_location_on_straight_east_west_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.971600, 77.599600),
-            LatLng(12.971600, 77.604600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.971600, 77.599600),
+                LatLng(12.971600, 77.604600)
+            )
+        )
 
         val location = LocationData(12.971600, 77.599600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -55,11 +58,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_location_on_diagonal_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.599600),
-            LatLng(12.981600, 77.604600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.599600),
+                LatLng(12.981600, 77.604600)
+            )
+        )
 
         val location = LocationData(12.976600, 77.599600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -91,11 +96,13 @@ class RouteMatcherVerificationTest {
     @Test
     fun `matches_location_on_sharp_turn`() {
         // Route with a 90-degree turn
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.594600), // North
-            LatLng(12.976600, 77.599600)  // Then east
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.594600), // North
+                LatLng(12.976600, 77.599600) // Then east
+            )
+        )
 
         // At the corner
         val location = LocationData(12.976600, 77.594600, 5f)
@@ -127,10 +134,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `detects_deviation_on_parallel_road_30m_away`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Location on parallel road ~30m east
         val location = LocationData(12.976600, 77.594850, 5f)
@@ -142,10 +151,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `detects_deviation_on_parallel_road_100m_away`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Location on parallel road ~100m east
         val location = LocationData(12.976600, 77.595500, 5f)
@@ -158,10 +169,12 @@ class RouteMatcherVerificationTest {
     @Test
     fun `detects_deviation_on_overpass`() {
         // Route on ground level
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Location on overpass crossing above (different lat, same lon)
         val location = LocationData(12.976600, 77.594000, 5f)
@@ -175,10 +188,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `handles_location_with_10m_accuracy`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Slightly off route but within GPS accuracy
         val location = LocationData(12.976600, 77.594650, 10f)
@@ -189,10 +204,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `handles_location_with_30m_accuracy`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Location with poor accuracy
         val location = LocationData(12.976600, 77.594700, 30f)
@@ -204,17 +221,19 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `handles_gps_drift_near_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Simulate GPS drift oscillating around route
         val locations = listOf(
             LocationData(12.976600, 77.594500, 8f),
             LocationData(12.976650, 77.594550, 10f),
             LocationData(12.976580, 77.594480, 12f),
-            LocationData(12.976620, 77.594520, 9f),
+            LocationData(12.976620, 77.594520, 9f)
         )
 
         locations.forEach { location ->
@@ -227,13 +246,17 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_with_aligned_heading`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600) // Northbound
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600) // Northbound
+            )
+        )
 
         val location = LocationData(
-            12.976600, 77.594600, 5f,
+            12.976600,
+            77.594600,
+            5f,
             bearing = 0f // Heading north
         )
         val result = routeMatcher.matchLocationToRoute(location, route, 0f)
@@ -243,13 +266,17 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `detects_wrong_heading_opposite_direction`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600) // Northbound
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600) // Northbound
+            )
+        )
 
         val location = LocationData(
-            12.976600, 77.594600, 5f,
+            12.976600,
+            77.594600,
+            5f,
             bearing = 180f // Heading south (wrong way)
         )
         val result = routeMatcher.matchLocationToRoute(location, route, 180f)
@@ -261,15 +288,19 @@ class RouteMatcherVerificationTest {
     @Test
     fun `handles_heading_on_curved_section`() {
         // Curved route going northeast then east
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.597600),
-            LatLng(12.976600, 77.604600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.597600),
+                LatLng(12.976600, 77.604600)
+            )
+        )
 
         // At the curve, heading east
         val location = LocationData(
-            12.976600, 77.597600, 5f,
+            12.976600,
+            77.597600,
+            5f,
             bearing = 90f // East
         )
         val result = routeMatcher.matchLocationToRoute(location, route, 90f)
@@ -281,11 +312,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_at_route_start`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.971600, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -297,10 +330,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_near_route_start`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.972100, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -312,11 +347,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_at_route_end`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.981600, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -328,10 +365,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `matches_near_route_end`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.981100, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -345,11 +384,13 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `calculates_progress_at_25_percent`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.976600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.976600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.974100, 77.594600, 5f) // Quarter way
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -361,10 +402,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `calculates_progress_at_50_percent`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.976600, 77.594600, 5f) // Half way
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -376,10 +419,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `calculates_progress_at_75_percent`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.979100, 77.594600, 5f) // Three-quarter way
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -393,10 +438,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `suggests_reroute_when_far_off_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // 200m away from route
         val location = LocationData(12.976600, 77.596400, 5f)
@@ -409,10 +456,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `suggests_continue_when_slightly_off_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // 60m away (slightly over threshold but heading OK)
         val location = LocationData(12.976600, 77.595150, 5f)
@@ -426,10 +475,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `handles_very_short_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.972600, 77.594600) // Only ~100m
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.972600, 77.594600) // Only ~100m
+            )
+        )
 
         val location = LocationData(12.972100, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -454,9 +505,11 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `handles_single_point_route`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600)
+            )
+        )
 
         val location = LocationData(12.971600, 77.594600, 5f)
         val result = routeMatcher.matchLocationToRoute(location, route)
@@ -467,10 +520,12 @@ class RouteMatcherVerificationTest {
 
     @Test
     fun `reset_clears_matcher_state`() {
-        val route = createRouteFromPoints(listOf(
-            LatLng(12.971600, 77.594600),
-            LatLng(12.981600, 77.594600)
-        ))
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.971600, 77.594600),
+                LatLng(12.981600, 77.594600)
+            )
+        )
 
         // Process some locations
         routeMatcher.matchLocationToRoute(LocationData(12.974600, 77.594600, 5f), route)

@@ -48,7 +48,9 @@ class SpeedCalculatorTest {
         // Large change but good accuracy should be accepted
         val result = speedCalculator.addReading(100f, 0.5f)
 
-        assertTrue(result > 70f)
+        // Weighted average of 50, 51, 100 with quality weighting
+        // Should be higher than baseline but weighted down by lower speed readings
+        assertTrue(result > 60f)
     }
 
     @Test

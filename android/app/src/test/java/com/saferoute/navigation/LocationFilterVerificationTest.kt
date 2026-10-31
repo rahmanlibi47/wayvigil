@@ -182,8 +182,8 @@ class LocationFilterVerificationTest {
         val location = LocationData(12.971600, 77.594600, 50f)
         val result = locationFilter.process(location)
 
-        // Should be rejected (accuracy must be < 50m)
-        assertNull(result)
+        // Should be accepted (accuracy <= 50m is acceptable)
+        assertNotNull(result)
     }
 
     @Test

@@ -19,13 +19,13 @@ class RouteMatcherTest {
 
     @Test
     fun `matchLocationToRoute returns OnRoute when location is on route`() {
-        // Create a simple straight route (encoded polyline)
-        // Points: (12.9716, 77.5946) -> (12.9816, 77.5946) -> (12.9916, 77.5946)
-        val route = Route(
-            polyline = "q}tnAaucyM}@oB?g@?g@?g@", // Simplified encoded polyline
-            distanceMeters = 2000,
-            durationSeconds = 120,
-            steps = emptyList()
+        // Create a simple straight route using proper encoded polyline
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.9716, 77.5946),
+                LatLng(12.9816, 77.5946),
+                LatLng(12.9916, 77.5946)
+            )
         )
 
         // Location on the route
@@ -42,11 +42,11 @@ class RouteMatcherTest {
 
     @Test
     fun `matchLocationToRoute returns OffRoute when far from route`() {
-        val route = Route(
-            polyline = "q}tnAaucyM}@oB?g@?g@?g@",
-            distanceMeters = 2000,
-            durationSeconds = 120,
-            steps = emptyList()
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.9716, 77.5946),
+                LatLng(12.9816, 77.5946)
+            )
         )
 
         // Location far from route

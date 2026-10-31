@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafeRoute AI</string>
+    <string name="title_activity_main">SafeRoute AI</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <!-- Map -->
+    <string name="map_api_key">YOUR_MAPS_API_KEY</string>
+
+    <!-- Common -->
+    <string name="action_settings">Settings</string>
+    <string name="action_profile">Profile</string>
+    <string name="action_share">Share</string>
+    <string name="action_search">Search</string>
+
+    <!-- Navigation -->
+    <string name="navigate">Navigate</string>
+    <string name="report_hazard">Report Hazard</string>
+    <string name="my_reports">My Reports</string>
+    <string name="community">Community</string>
+
+    <!-- Hazard Types -->
+    <string name="hazard_speed_breaker">Speed Breaker</string>
+    <string name="hazard_pothole">Pothole</string>
+    <string name="hazard_sharp_curve">Sharp Curve</string>
+    <string name="hazard_intersection">Dangerous Intersection</string>
+    <string name="hazard_construction">Road Construction</string>
+    <string name="hazard_accident">Accident</string>
+    <string name="hazard_waterlogging">Waterlogging</string>
+    <string name="hazard_obstruction">Road Obstruction</string>
+    <string name="hazard_damaged_road">Damaged Road</string>
+    <string name="hazard_railway_crossing">Railway Crossing</string>
+    <string name="hazard_other">Other</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Hazard Alerts</string>
+    <string name="notification_channel_description">Alerts for nearby road hazards</string>
+    <string name="notification_hazard_ahead">%1$s ahead</string>
+    <string name="notification_hazard_distance">%1$s in %2$d meters</string>
+
+    <!-- Emergency -->
+    <string name="emergency_sos">Emergency SOS</string>
+    <string name="emergency_contacts">Emergency Contacts</string>
+    <string name="call_emergency">Call Emergency Services</string>
+</resources>

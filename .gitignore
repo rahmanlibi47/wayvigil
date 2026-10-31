@@ -1,0 +1,24 @@
+# Root .gitignore for SafeRoute AI
+
+# API Keys and Secrets
+**/google-services.json
+local.properties
+.env
+.env.*
+!.env.template
+
+# IDE Files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+hs_err_pid*.log

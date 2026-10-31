@@ -33,7 +33,7 @@ android {
         versionName = "0.1.0"
 
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
-        
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -45,39 +45,44 @@ android {
     }
 
     buildTypes {
-    release {
-        isMinifyEnabled = false
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
-            "proguard-rules.pro"
-        )
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+
+        debug {
+            isDebuggable = true
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"http://127.0.0.1:8000\""
+            )
+        }
     }
 
-    debug {
-        isDebuggable = true
-        manifestPlaceholders["usesCleartextTraffic"] = "true"
-
-        buildConfigField(
-            "String",
-            "API_BASE_URL",
-            "\"http://127.0.0.1:8000\""
-        )
-    }
-}
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.5"
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

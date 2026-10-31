@@ -2,14 +2,19 @@
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (Column, DateTime, Enum, Float, ForeignKey, Integer,
+                        String, Text)
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class HazardType(str, PyEnum):
@@ -74,7 +79,9 @@ class Hazard(Base):
     expires_at = Column(DateTime, nullable=True)
 
     # Relationships
-    reports = relationship("HazardReport", back_populates="hazard")
+    reports: Mapped[List["HazardReport"]] = relationship(
+        "HazardReport", back_populates="hazard"
+    )
 
     def __repr__(self):
         return f"<Hazard(id={self.id}, type={self.hazard_type}, status={self.status})>"
@@ -114,8 +121,10 @@ class HazardReport(Base):
     app_version = Column(String(20), nullable=True)
 
     # Relationships
-    hazard = relationship("Hazard", back_populates="reports")
-    reporter = relationship("User")
+    hazard: Mapped[Optional["Hazard"]] = relationship(
+        "Hazard", back_populates="reports"
+    )
+    reporter: Mapped[Optional["User"]] = relationship("User")
 
     def __repr__(self):
         return f"<HazardReport(id={self.id}, type={self.hazard_type})>"

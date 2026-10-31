@@ -9,13 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.database import get_db
 from app.models.hazard import HazardType
-from app.schemas.hazard import (
-    HazardCreate,
-    HazardReportCreate,
-    HazardReportResponse,
-    HazardResponse,
-    NearbyHazardQuery,
-)
+from app.schemas.hazard import (HazardReportCreate, HazardReportResponse,
+                                HazardResponse, NearbyHazardQuery)
 from app.schemas.user import UserResponse
 from app.services.hazard_service import HazardService
 
@@ -44,7 +39,9 @@ async def get_nearby_hazards(
     return [HazardResponse.model_validate(h) for h in hazards]
 
 
-@router.post("/reports", response_model=HazardReportResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/reports", response_model=HazardReportResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_hazard_report(
     report: HazardReportCreate,
     db: AsyncSession = Depends(get_db),

@@ -24,7 +24,9 @@ class HazardService:
 
         # Add spatial filter
         point = f"SRID=4326;POINT({query.longitude} {query.latitude})"
-        stmt = stmt.where(ST_DWithin(Hazard.location, ST_GeogFromText(point), query.radius))
+        stmt = stmt.where(
+            ST_DWithin(Hazard.location, ST_GeogFromText(point), query.radius)
+        )
 
         # Filter by verification status
         if not query.include_unverified:
@@ -38,7 +40,9 @@ class HazardService:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
-    async def create_report(self, report_data: HazardReportCreate, user_id: UUID) -> HazardReport:
+    async def create_report(
+        self, report_data: HazardReportCreate, user_id: UUID
+    ) -> HazardReport:
         """Create a new hazard report."""
         from geoalchemy2 import WKTElement
 
@@ -47,11 +51,14 @@ class HazardService:
             hazard_type=report_data.hazard_type,
             description=report_data.description,
             location=WKTElement(
-                f"POINT({report_data.location.longitude} {report_data.location.latitude})",
+                f"POINT({report_data.location.longitude}"
+                f" {report_data.location.latitude})",
                 srid=4326,
             ),
             location_accuracy=report_data.location.accuracy,
-            media_urls=",".join(report_data.media_urls) if report_data.media_urls else None,
+            media_urls=(
+                ",".join(report_data.media_urls) if report_data.media_urls else None
+            ),
             device_id=report_data.device_id,
             app_version=report_data.app_version,
         )
@@ -65,7 +72,9 @@ class HazardService:
 
     async def get_report(self, report_id: UUID) -> Optional[HazardReport]:
         """Get a hazard report by ID."""
-        result = await self.db.execute(select(HazardReport).where(HazardReport.id == report_id))
+        result = await self.db.execute(
+            select(HazardReport).where(HazardReport.id == report_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_user_reports(
@@ -84,7 +93,9 @@ class HazardService:
 
     async def delete_report(self, report_id: UUID) -> bool:
         """Delete a hazard report."""
-        result = await self.db.execute(select(HazardReport).where(HazardReport.id == report_id))
+        result = await self.db.execute(
+            select(HazardReport).where(HazardReport.id == report_id)
+        )
         report = result.scalar_one_or_none()
         if report is None:
             return False
@@ -96,10 +107,13 @@ class HazardService:
     async def create_or_update_hazard(self, report: HazardReport) -> Hazard:
         """Create or update aggregated hazard from report."""
         # Check for existing hazard within 20 meters
-        point = f"SRID=4326;POINT({report.location.longitude} {report.location.latitude})"
-        stmt = select(Hazard).where(
-            Hazard.hazard_type == report.hazard_type,
-            ST_DWithin(Hazard.location, ST_GeogFromText(point), 20),
+        point = (
+            f"SRID=4326;POINT({report.location.longitude} {report.location.latitude})"
+        )
+        stmt = (
+            select(Hazard)
+            .where(Hazard.hazard_type == report.hazard_type)
+            .where(ST_DWithin(Hazard.location, ST_GeogFromText(point), 20))
         )
         result = await self.db.execute(stmt)
         existing = result.scalar_one_or_none()

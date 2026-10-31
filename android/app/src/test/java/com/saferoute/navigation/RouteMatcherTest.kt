@@ -177,4 +177,13 @@ class RouteMatcherTest {
         }
         sb.append((v + 63).toChar())
     }
+
+    private fun createRouteFromPoints(points: List<LatLng>): Route {
+        return Route(
+            polyline = encodePolyline(points),
+            distanceMeters = 1000,
+            durationSeconds = 120,
+            steps = emptyList()
+        )
+    }
 }

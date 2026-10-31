@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import (Column, DateTime, Enum, Float, ForeignKey, Integer,
-                        String, Text)
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, relationship
 

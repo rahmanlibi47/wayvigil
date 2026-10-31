@@ -9,8 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.database import get_db
 from app.models.hazard import HazardType
-from app.schemas.hazard import (HazardReportCreate, HazardReportResponse,
-                                HazardResponse, NearbyHazardQuery)
+from app.schemas.hazard import (
+    HazardReportCreate,
+    HazardReportResponse,
+    HazardResponse,
+    NearbyHazardQuery,
+)
 from app.schemas.user import UserResponse
 from app.services.hazard_service import HazardService
 

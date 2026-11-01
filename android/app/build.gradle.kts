@@ -1,5 +1,5 @@
-import java.util.Properties
 import org.gradle.api.tasks.testing.Test
+import java.util.Properties
 
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")

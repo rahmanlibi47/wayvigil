@@ -35,7 +35,7 @@ class SafeRouteApi @Inject constructor(
     }
 
     suspend fun getCurrentUser(): User {
-        return client.get("$basePath/auth/me").body()
+        return client.get("$basePath/users/me").body()
     }
 
     // User endpoints

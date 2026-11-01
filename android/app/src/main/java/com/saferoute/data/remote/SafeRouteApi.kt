@@ -83,6 +83,29 @@ class SafeRouteApi @Inject constructor(
     suspend fun deleteReport(reportId: String) {
         client.delete("$basePath/hazards/reports/$reportId")
     }
+
+    suspend fun autocompletePlaces(
+        input: String,
+        sessionToken: String,
+        latitude: Double? = null,
+        longitude: Double? = null
+    ): List<PlaceSuggestionResponse> {
+        return client.post("$basePath/navigation/places/autocomplete") {
+            setBody(PlaceAutocompleteRequest(input, sessionToken, latitude, longitude))
+        }.body()
+    }
+
+    suspend fun getPlaceDetails(placeId: String, sessionToken: String): PlaceDetailsResponse {
+        return client.post("$basePath/navigation/places/details") {
+            setBody(PlaceDetailsRequest(placeId, sessionToken))
+        }.body()
+    }
+
+    suspend fun calculateRoute(request: ComputeRouteRequest): NavigationRoutesResponse {
+        return client.post("$basePath/navigation/routes") {
+            setBody(request)
+        }.body()
+    }
 }
 
 @kotlinx.serialization.Serializable

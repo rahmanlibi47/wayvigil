@@ -1,13 +1,11 @@
 package com.saferoute.navigation
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.location.Location
-import android.os.IBinder
+import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -37,6 +35,8 @@ class NavigationManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val fusedLocationClient: FusedLocationProviderClient
 ) {
+    enum class LocationQuality { SEARCHING, GOOD, POOR, STALE }
+
     // State flows
     private val _navigationState = MutableStateFlow<NavigationState>(NavigationState.Idle)
     val navigationState: StateFlow<NavigationState> = _navigationState.asStateFlow()
@@ -50,35 +50,37 @@ class NavigationManager @Inject constructor(
     private val _heading = MutableStateFlow<Float?>(null)
     val heading: StateFlow<Float?> = _heading.asStateFlow()
 
+    private val _locationQuality = MutableStateFlow(LocationQuality.SEARCHING)
+    val locationQuality: StateFlow<LocationQuality> = _locationQuality.asStateFlow()
+
     // Navigation logic components
     private val speedCalculator = SpeedCalculator()
     private val routeMatcher = RouteMatcher()
+    private val offRouteDetector = OffRouteDetector()
+    private var routeProgressTracker: RouteProgressTracker? = null
 
     // Location tracking
     private var locationCallback: LocationCallback? = null
     private var isTracking = false
-
-    // Service binding
-    private var locationService: LocationTrackingService? = null
-    private var serviceBound = false
-
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val binder = service as LocationTrackingService.LocalBinder
-            locationService = binder.getService()
-            serviceBound = true
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            locationService = null
-            serviceBound = false
+    private var trackingStartedAt = 0L
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val staleLocationCheck = object : Runnable {
+        override fun run() {
+            if (!isTracking) return
+            val lastFix = _currentLocation.value
+            val lastUpdateTime = lastFix?.timestamp ?: trackingStartedAt
+            if (System.currentTimeMillis() - lastUpdateTime > LOCATION_STALE_AFTER_MS) {
+                _locationQuality.value = LocationQuality.STALE
+                _currentSpeed.value = speedCalculator.getFilteredSpeed()
+            }
+            mainHandler.postDelayed(this, LOCATION_QUALITY_CHECK_INTERVAL_MS)
         }
     }
 
     /**
      * Starts location tracking with appropriate permissions
      */
-    fun startLocationTracking(): Boolean {
+    private fun startLocationTracking(): Boolean {
         if (!hasLocationPermission()) {
             return false
         }
@@ -87,49 +89,59 @@ class NavigationManager @Inject constructor(
             return true
         }
 
-        // Start and bind to foreground service
+        // The service owns the notification; NavigationManager is the sole location source.
         val serviceIntent = Intent(context, LocationTrackingService::class.java)
-        ContextCompat.startForegroundService(context, serviceIntent)
-        context.bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
-
-        // Also request direct location updates for UI
-        startDirectLocationUpdates()
-
-        isTracking = true
-        return true
+        return try {
+            ContextCompat.startForegroundService(context, serviceIntent)
+            isTracking = true
+            trackingStartedAt = System.currentTimeMillis()
+            _locationQuality.value = LocationQuality.SEARCHING
+            mainHandler.removeCallbacks(staleLocationCheck)
+            mainHandler.postDelayed(staleLocationCheck, LOCATION_QUALITY_CHECK_INTERVAL_MS)
+            startDirectLocationUpdates()
+        } catch (e: SecurityException) {
+            isTracking = false
+            context.stopService(serviceIntent)
+            false
+        }
     }
 
     /**
      * Stops location tracking
      */
-    fun stopLocationTracking() {
+    private fun stopLocationTracking() {
+        mainHandler.removeCallbacks(staleLocationCheck)
         if (!isTracking) return
 
         stopDirectLocationUpdates()
 
-        if (serviceBound) {
-            context.unbindService(serviceConnection)
-            serviceBound = false
-        }
-
         val serviceIntent = Intent(context, LocationTrackingService::class.java)
         context.stopService(serviceIntent)
 
-        locationService = null
         isTracking = false
+        _locationQuality.value = LocationQuality.SEARCHING
+        speedCalculator.clear()
+        _currentSpeed.value = 0f
     }
 
     /**
      * Starts navigation with a calculated route
      */
-    fun startNavigation(route: Route) {
+    fun startNavigation(route: Route): Boolean {
+        if (!startLocationTracking()) return false
+        val current = _navigationState.value
+        if (current is NavigationState.Navigating && current.route == route) return true
         _navigationState.value = NavigationState.Navigating(
             route = route,
             currentStep = 0,
+            distanceToNextManeuver = route.steps.firstOrNull()?.distanceMeters ?: 0,
             remainingDistance = route.distanceMeters,
             remainingDuration = route.durationSeconds
         )
         routeMatcher.reset()
+        offRouteDetector.reset()
+        routeProgressTracker = RouteProgressTracker(route)
+        return true
     }
 
     /**
@@ -138,6 +150,9 @@ class NavigationManager @Inject constructor(
     fun stopNavigation() {
         _navigationState.value = NavigationState.Idle
         routeMatcher.reset()
+        offRouteDetector.reset()
+        routeProgressTracker = null
+        stopLocationTracking()
     }
 
     /**
@@ -164,6 +179,17 @@ class NavigationManager @Inject constructor(
             timestamp = location.time
         )
 
+        val ageMs = System.currentTimeMillis() - locationData.timestamp
+        if (!locationData.latitude.isFinite() || !locationData.longitude.isFinite() ||
+            locationData.latitude !in -90.0..90.0 || locationData.longitude !in -180.0..180.0 ||
+            !locationData.hasAcceptableAccuracy() || ageMs < -FUTURE_TIMESTAMP_TOLERANCE_MS ||
+            ageMs > LOCATION_STALE_AFTER_MS
+        ) {
+            _locationQuality.value = LocationQuality.POOR
+            return
+        }
+
+        _locationQuality.value = LocationQuality.GOOD
         _currentLocation.value = locationData
         _heading.value = if (location.hasBearing()) location.bearing else null
 
@@ -179,8 +205,18 @@ class NavigationManager @Inject constructor(
      * Checks if user is on route and updates state accordingly
      */
     private fun checkRouteProgress(locationData: LocationData) {
-        val currentState = _navigationState.value
-        if (currentState !is NavigationState.Navigating) return
+        val previousState = _navigationState.value
+        val currentState = when (previousState) {
+            is NavigationState.Navigating -> previousState
+            is NavigationState.Deviation -> NavigationState.Navigating(
+                route = previousState.lastKnownRoute,
+                currentStep = previousState.currentStep,
+                distanceToNextManeuver = previousState.distanceToNextManeuver,
+                remainingDistance = previousState.remainingDistance,
+                remainingDuration = previousState.remainingDuration
+            )
+            else -> return
+        }
 
         val matchResult = routeMatcher.matchLocationToRoute(
             locationData,
@@ -190,49 +226,66 @@ class NavigationManager @Inject constructor(
 
         when (matchResult) {
             is RouteMatcher.MatchResult.OnRoute -> {
-                // Update progress
-                val remainingDistance = (currentState.route.distanceMeters * (1 - matchResult.progressFraction)).toInt()
-                val remainingDuration = (currentState.route.durationSeconds * (1 - matchResult.progressFraction)).toInt()
+                offRouteDetector.observe(matchResult, locationData.timestamp)
+                val progress = routeProgressTracker?.update(
+                    progressFraction = matchResult.progressFraction,
+                    distanceToDestinationMeters = matchResult.distanceToDestinationMeters
+                ) ?: return
 
                 _navigationState.value = currentState.copy(
-                    remainingDistance = remainingDistance,
-                    remainingDuration = remainingDuration
+                    currentStep = progress.currentStep,
+                    distanceToNextManeuver = progress.distanceToNextManeuverMeters,
+                    remainingDistance = progress.remainingDistanceMeters,
+                    remainingDuration = progress.remainingDurationSeconds
                 )
 
                 // Check if arrived
-                if (remainingDistance < ARRIVAL_THRESHOLD_METERS) {
+                if (progress.arrived) {
                     _navigationState.value = NavigationState.Arrived(
-                        destination = "Destination" // TODO: Get from route
+                        destination = currentState.route.destinationName
                     )
+                    stopLocationTracking()
                 }
             }
             is RouteMatcher.MatchResult.OffRoute -> {
                 when (matchResult.suggestedAction) {
                     RouteMatcher.SuggestedAction.REROUTE -> {
-                        _navigationState.value = NavigationState.Deviation(currentState.route)
+                        if (offRouteDetector.observe(matchResult, locationData.timestamp)) {
+                            _navigationState.value = NavigationState.Deviation(
+                                lastKnownRoute = currentState.route,
+                                currentStep = currentState.currentStep,
+                                distanceToNextManeuver = currentState.distanceToNextManeuver,
+                                remainingDistance = currentState.remainingDistance,
+                                remainingDuration = currentState.remainingDuration
+                            )
+                        }
                     }
                     else -> {
-                        // Continue for now, may be temporary
+                        offRouteDetector.observe(matchResult, locationData.timestamp)
                     }
                 }
             }
         }
     }
 
-    /**
-     * Requests rerouting when user is off route
-     */
-    fun requestReroute() {
+    fun continueNavigation() {
         val currentState = _navigationState.value
         if (currentState is NavigationState.Deviation) {
-            _navigationState.value = NavigationState.Rerouting(currentState.lastKnownRoute)
+            offRouteDetector.reset()
+            _navigationState.value = NavigationState.Navigating(
+                route = currentState.lastKnownRoute,
+                currentStep = currentState.currentStep,
+                distanceToNextManeuver = currentState.distanceToNextManeuver,
+                remainingDistance = currentState.remainingDistance,
+                remainingDuration = currentState.remainingDuration
+            )
         }
     }
 
     /**
      * Starts direct location updates for UI
      */
-    private fun startDirectLocationUpdates() {
+    private fun startDirectLocationUpdates(): Boolean {
         val locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
             UPDATE_INTERVAL_MS
@@ -249,15 +302,20 @@ class NavigationManager @Inject constructor(
             }
         }
 
+        val callback = locationCallback ?: return false
         try {
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
-                locationCallback!!,
+                callback,
                 Looper.getMainLooper()
-            )
+            ).addOnFailureListener {
+                _locationQuality.value = LocationQuality.STALE
+                stopLocationTracking()
+            }
+            return true
         } catch (e: SecurityException) {
-            // Permission not granted
-            isTracking = false
+            stopLocationTracking()
+            return false
         }
     }
 
@@ -296,6 +354,8 @@ class NavigationManager @Inject constructor(
     companion object {
         private const val UPDATE_INTERVAL_MS = 1000L
         private const val FASTEST_UPDATE_INTERVAL_MS = 500L
-        private const val ARRIVAL_THRESHOLD_METERS = 50
+        private const val LOCATION_STALE_AFTER_MS = 5000L
+        private const val LOCATION_QUALITY_CHECK_INTERVAL_MS = 2000L
+        private const val FUTURE_TIMESTAMP_TOLERANCE_MS = 2000L
     }
 }

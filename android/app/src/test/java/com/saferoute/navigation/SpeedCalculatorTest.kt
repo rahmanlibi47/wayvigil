@@ -114,4 +114,18 @@ class SpeedCalculatorTest {
         val result = speedCalculator.getFilteredSpeed()
         assertEquals(0f, result, 0.1f)
     }
+
+    @Test
+    fun `addLocation ignores non-finite speed readings`() {
+        val location = LocationData(
+            latitude = 12.9716,
+            longitude = 77.5946,
+            accuracy = 5f,
+            speed = Float.NaN,
+            speedAccuracy = 1f
+        )
+
+        assertEquals(0f, speedCalculator.addLocation(location), 0.1f)
+        assertEquals(0, speedCalculator.getActiveReadingCount())
+    }
 }

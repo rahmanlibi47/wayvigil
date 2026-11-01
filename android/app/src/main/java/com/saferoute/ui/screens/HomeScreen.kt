@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToMap: () -> Unit,
+    onNavigateToNavigation: () -> Unit,
     onNavigateToReport: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit
@@ -106,7 +106,7 @@ fun HomeScreen(
                         icon = Icons.Default.LocationOn,
                         title = "Navigate",
                         modifier = Modifier.weight(1f),
-                        onClick = onNavigateToMap
+                        onClick = onNavigateToNavigation
                     )
                     QuickActionCard(
                         icon = Icons.Default.Report,

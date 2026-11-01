@@ -26,7 +26,8 @@ data class LocationData(
      * Checks if this location has valid speed information
      */
     fun hasValidSpeed(): Boolean {
-        return speed >= 0 && speedAccuracy >= 0 && speedAccuracy < SPEED_ACCURACY_THRESHOLD
+        return speed.isFinite() && speedAccuracy.isFinite() &&
+            speed >= 0 && speedAccuracy >= 0 && speedAccuracy < SPEED_ACCURACY_THRESHOLD
     }
 
     /**
@@ -74,11 +75,17 @@ sealed class NavigationState {
     data class Navigating(
         val route: Route,
         val currentStep: Int,
+        val distanceToNextManeuver: Int,
         val remainingDistance: Int,
         val remainingDuration: Int
     ) : NavigationState()
-    data class Deviation(val lastKnownRoute: Route) : NavigationState()
-    data class Rerouting(val lastKnownRoute: Route) : NavigationState()
+    data class Deviation(
+        val lastKnownRoute: Route,
+        val currentStep: Int,
+        val distanceToNextManeuver: Int,
+        val remainingDistance: Int,
+        val remainingDuration: Int
+    ) : NavigationState()
     data class Arrived(val destination: String) : NavigationState()
 }
 
@@ -91,8 +98,18 @@ data class Route(
     val distanceMeters: Int,
     val durationSeconds: Int,
     val steps: List<RouteStep>,
-    val warnings: List<String> = emptyList()
+    val warnings: List<String> = emptyList(),
+    val routeLabel: String = "DEFAULT_ROUTE",
+    val travelMode: NavigationTravelMode = NavigationTravelMode.DRIVE,
+    val destinationName: String = "Destination",
+    val destinationLocation: Location? = null
 )
+
+@Serializable
+enum class NavigationTravelMode {
+    DRIVE,
+    TWO_WHEELER
+}
 
 /**
  * Individual route step (maneuver)

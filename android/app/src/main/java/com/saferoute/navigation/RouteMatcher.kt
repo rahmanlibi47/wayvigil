@@ -22,7 +22,8 @@ class RouteMatcher(
         data class OnRoute(
             val progressFraction: Float,
             val distanceToRoute: Float,
-            val nearestPoint: LatLng
+            val nearestPoint: LatLng,
+            val distanceToDestinationMeters: Float
         ) : MatchResult()
 
         data class OffRoute(
@@ -82,11 +83,13 @@ class RouteMatcher(
 
         // Determine if on or off route
         return when {
-            match.distanceMeters <= maxDeviationMeters && headingAligned -> {
+            match.distanceMeters <= maxDeviationMeters &&
+                (headingAligned || match.distanceToDestinationMeters <= ARRIVAL_PROXIMITY_METERS) -> {
                 MatchResult.OnRoute(
                     progressFraction = progressFraction,
                     distanceToRoute = match.distanceMeters,
-                    nearestPoint = match.point
+                    nearestPoint = match.point,
+                    distanceToDestinationMeters = match.distanceToDestinationMeters
                 )
             }
             match.distanceMeters <= maxDeviationMeters * 2 && headingAligned -> {
@@ -122,7 +125,8 @@ class RouteMatcher(
         val point: LatLng,
         val segmentIndex: Int,
         val progressFraction: Float,
-        val distanceMeters: Float
+        val distanceMeters: Float,
+        val distanceToDestinationMeters: Float
     )
 
     private fun findNearestPoint(
@@ -131,7 +135,8 @@ class RouteMatcher(
     ): RouteMatch {
         if (routePoints.size == 1) {
             val point = routePoints.first()
-            return RouteMatch(point, 0, 0f, calculateDistance(location, point))
+            val distance = calculateDistance(location, point)
+            return RouteMatch(point, 0, 0f, distance, distance)
         }
 
         val earthRadius = LocationFilter.EARTH_RADIUS_METERS
@@ -143,6 +148,11 @@ class RouteMatcher(
         }
 
         val locationPoint = project(location)
+        val segmentLengths = routePoints.zipWithNext { start, end ->
+            calculateDistance(start, end)
+        }
+        val totalRouteLength = segmentLengths.sum()
+        var distanceBeforeSegment = 0f
         var best: RouteMatch? = null
         for (index in 0 until routePoints.lastIndex) {
             val start = routePoints[index]
@@ -171,10 +181,17 @@ class RouteMatcher(
                 best = RouteMatch(
                     point = projected,
                     segmentIndex = index,
-                    progressFraction = (index + fraction).toFloat() / (routePoints.size - 1),
-                    distanceMeters = distance
+                    progressFraction = if (totalRouteLength > 0f) {
+                        (distanceBeforeSegment + segmentLengths[index] * fraction.toFloat()) /
+                            totalRouteLength
+                    } else {
+                        0f
+                    },
+                    distanceMeters = distance,
+                    distanceToDestinationMeters = calculateDistance(location, routePoints.last())
                 )
             }
+            distanceBeforeSegment += segmentLengths[index]
         }
         return requireNotNull(best)
     }
@@ -242,36 +259,38 @@ class RouteMatcher(
         val poly = ArrayList<LatLng>()
         var index = 0
         val len = encoded.length
-        var lat = 0
-        var lng = 0
+        var lat = 0L
+        var lng = 0L
+
+        fun readDelta(): Long? {
+            var result = 0L
+            var shift = 0
+            while (true) {
+                if (index >= len || shift > 30) return null
+                val code = encoded[index++].code
+                if (code !in 63..126) return null
+                val value = code - 63
+                result = result or ((value and 0x1f).toLong() shl shift)
+                if (value < 0x20) break
+                shift += 5
+            }
+            return if ((result and 1L) != 0L) (result shr 1).inv() else result shr 1
+        }
 
         while (index < len) {
-            var b: Int
-            var shift = 0
-            var result = 0
-            do {
-                b = encoded[index++].code - 63
-                result = result or (b and 0x1f shl shift)
-                shift += 5
-            } while (b >= 0x20)
-            val dlat = if (result and 1 != 0) (result shr 1).inv() else result shr 1
-            lat += dlat
-
-            shift = 0
-            result = 0
-            do {
-                b = encoded[index++].code - 63
-                result = result or (b and 0x1f shl shift)
-                shift += 5
-            } while (b >= 0x20)
-            val dlng = if (result and 1 != 0) (result shr 1).inv() else result shr 1
-            lng += dlng
+            val latitudeDelta = readDelta() ?: return emptyList()
+            val longitudeDelta = readDelta() ?: return emptyList()
+            lat += latitudeDelta
+            lng += longitudeDelta
+            if (lat !in -9_000_000L..9_000_000L || lng !in -18_000_000L..18_000_000L) {
+                return emptyList()
+            }
 
             val latLng = LatLng(lat / 1E5, lng / 1E5)
             poly.add(latLng)
         }
 
-        return poly
+        return poly.takeIf { it.size >= 2 }.orEmpty()
     }
 
     fun reset() {
@@ -280,5 +299,6 @@ class RouteMatcher(
 
     companion object {
         const val DEFAULT_MAX_DEVIATION_METERS = 50f
+        private const val ARRIVAL_PROXIMITY_METERS = 50f
     }
 }

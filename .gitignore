@@ -1,4 +1,4 @@
-# Root .gitignore for SafeRoute AI
+# Root .gitignore for WayVigil AI
 
 # API Keys and Secrets
 **/google-services.json

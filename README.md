@@ -1,10 +1,10 @@
-# SafeRoute AI - Intelligent Road Safety & Navigation Platform
+# WayVigil AI - Intelligent Road Safety & Navigation Platform
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-yellow.svg)
 
-SafeRoute AI is a modern Android application that combines navigation, intelligent road safety monitoring, AI-powered hazard detection, and community-driven road hazard reporting. The platform goes beyond conventional navigation by understanding upcoming road conditions and proactively warning users.
+WayVigil AI is a modern Android application that combines navigation, intelligent road safety monitoring, AI-powered hazard detection, and community-driven road hazard reporting. The platform goes beyond conventional navigation by understanding upcoming road conditions and proactively warning users.
 
 ## Features
 
@@ -57,7 +57,7 @@ SafeRoute AI is a modern Android application that combines navigation, intellige
 ## Project Structure
 
 ```
-saferoute-ai/
+wayvigil/
 ├── android/                 # Android application
 │   └── app/
 │       └── src/main/java/com/saferoute/
@@ -90,8 +90,8 @@ saferoute-ai/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/saferoute-ai.git
-   cd saferoute-ai
+   git clone https://github.com/rahmanlibi47/wayvigil.git
+   cd wayvigil
    ```
 
 2. **Start the backend**
@@ -222,7 +222,7 @@ rule, GitHub will allow direct pushes or merges with failing checks.
 
 ## Safety Disclaimer
 
-SafeRoute AI is designed to supplement, not replace, driver judgment. Always:
+WayVigil AI is designed to supplement, not replace, driver judgment. Always:
 - Follow traffic laws and regulations
 - Maintain safe following distances
 - Adjust speed based on road conditions

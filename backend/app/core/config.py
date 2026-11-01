@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """Application settings with security validation."""
 
     # Project
-    PROJECT_NAME: str = "SafeRoute AI"
+    PROJECT_NAME: str = "WayVigil AI"
     VERSION: str = "0.1.0"
     DEBUG: bool = False
     ENVIRONMENT: str = "development"

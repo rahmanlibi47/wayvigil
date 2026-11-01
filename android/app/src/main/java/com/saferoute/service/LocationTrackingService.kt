@@ -87,7 +87,7 @@ class LocationTrackingService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("SafeRoute Navigation")
+            .setContentTitle("WayVigil AI Navigation")
             .setContentText("Tracking your location for safe navigation")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)
@@ -174,7 +174,7 @@ class LocationTrackingService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("SafeRoute Navigation")
+            .setContentTitle("WayVigil AI Navigation")
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)

@@ -71,7 +71,7 @@ fun LoginScreen(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "SafeRoute Logo",
+                contentDescription = "WayVigil AI logo",
                 modifier = Modifier.size(100.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -79,7 +79,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Welcome to SafeRoute AI",
+                text = "Welcome to WayVigil AI",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center

@@ -1,5 +1,5 @@
-# SafeRoute AI - Local Development Docker Compose
-name: saferoute-ai
+# WayVigil AI - Local Development Docker Compose
+name: wayvigil-ai
 
 services:
   # PostgreSQL Database with PostGIS

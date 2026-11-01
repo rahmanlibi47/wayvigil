@@ -6,6 +6,8 @@ local.properties
 .env
 .env.*
 !.env.template
+**/.venv/
+**/poetry.toml
 
 # IDE Files
 .idea/

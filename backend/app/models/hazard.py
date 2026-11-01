@@ -6,8 +6,18 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, relationship
 
 from app.core.database import Base
@@ -62,7 +72,8 @@ class Hazard(Base):
     severity = Column(Enum(HazardSeverity), default=HazardSeverity.MODERATE)
 
     # Location (PostGIS Point)
-    location = Column(Geometry("POINT", srid=4326), nullable=False)
+    # The GiST index is declared explicitly in __table_args__ below.
+    location = Column(Geometry("POINT", srid=4326, spatial_index=False), nullable=False)
 
     # Metadata
     description = Column(Text, nullable=True)
@@ -80,6 +91,14 @@ class Hazard(Base):
     # Relationships
     reports: Mapped[List["HazardReport"]] = relationship(
         "HazardReport", back_populates="hazard"
+    )
+
+    # Table arguments with spatial index for efficient geo queries
+    __table_args__ = (
+        Index("idx_hazards_location", "location", postgresql_using="gist"),
+        Index("idx_hazards_status", "status"),
+        Index("idx_hazards_type", "hazard_type"),
+        Index("idx_hazards_expires", "expires_at"),
     )
 
     def __repr__(self):
@@ -100,11 +119,12 @@ class HazardReport(Base):
     description = Column(Text, nullable=True)
 
     # Location
-    location = Column(Geometry("POINT", srid=4326), nullable=False)
+    # The GiST index is declared explicitly in __table_args__ below.
+    location = Column(Geometry("POINT", srid=4326, spatial_index=False), nullable=False)
     location_accuracy = Column(Float, nullable=True)  # in meters
 
-    # Media
-    media_urls = Column(String(1024), nullable=True)  # JSON array of URLs
+    # Media - stored as JSONB for proper querying
+    media_urls = Column(JSONB, nullable=True, default=list)
 
     # Status
     status = Column(Enum(HazardStatus), default=HazardStatus.PENDING)
@@ -124,6 +144,15 @@ class HazardReport(Base):
         "Hazard", back_populates="reports"
     )
     reporter: Mapped[Optional["User"]] = relationship("User")
+
+    # Table arguments with indexes for common queries
+    __table_args__ = (
+        Index("idx_hazard_reports_location", "location", postgresql_using="gist"),
+        Index("idx_hazard_reports_reporter", "reporter_id"),
+        Index("idx_hazard_reports_hazard", "hazard_id"),
+        Index("idx_hazard_reports_created", "created_at"),
+        Index("idx_hazard_reports_device", "device_id"),
+    )
 
     def __repr__(self):
         return f"<HazardReport(id={self.id}, type={self.hazard_type})>"

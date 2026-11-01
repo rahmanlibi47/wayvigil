@@ -17,8 +17,18 @@ from app.models import *  # noqa
 # this is the Alembic Config object
 config = context.config
 
-# Set the database URL
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+# Convert PostgreSQL URL to async version for migrations
+def get_async_database_url() -> str:
+    """Get async-compatible database URL for Alembic."""
+    url = settings.DATABASE_URL
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+# Set the database URL (converted to async format)
+config.set_main_option("sqlalchemy.url", get_async_database_url())
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

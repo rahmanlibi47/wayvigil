@@ -8,8 +8,7 @@ on:
       - ".github/workflows/android-ci.yml"
   pull_request:
     branches: [main, develop]
-    paths:
-      - "android/**"
+  workflow_dispatch:
 
 jobs:
   build:

@@ -3,6 +3,9 @@ package com.saferoute.di
 import android.content.Context
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.saferoute.data.remote.ApiClient
+import com.saferoute.data.remote.AuthInterceptor
+import com.saferoute.data.remote.DeviceIdManager
 import com.saferoute.data.remote.SafeRouteApi
 import com.saferoute.data.remote.TokenManager
 import com.saferoute.navigation.NavigationManager
@@ -25,9 +28,28 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideDeviceIdManager(
+        @ApplicationContext context: Context
+    ): DeviceIdManager = DeviceIdManager(context)
+
+    @Provides
+    @Singleton
+    fun provideAuthInterceptor(
+        tokenManager: TokenManager,
+        deviceIdManager: DeviceIdManager
+    ): AuthInterceptor = AuthInterceptor(tokenManager, deviceIdManager)
+
+    @Provides
+    @Singleton
+    fun provideApiClient(
+        authInterceptor: AuthInterceptor
+    ): ApiClient = ApiClient(authInterceptor)
+
+    @Provides
+    @Singleton
     fun provideSafeRouteApi(
-        tokenManager: TokenManager
-    ): SafeRouteApi = SafeRouteApi(com.saferoute.data.remote.ApiClient(tokenManager))
+        apiClient: ApiClient
+    ): SafeRouteApi = SafeRouteApi(apiClient)
 
     @Provides
     @Singleton

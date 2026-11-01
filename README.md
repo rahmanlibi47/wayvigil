@@ -97,19 +97,33 @@ saferoute-ai/
 2. **Start the backend**
    ```bash
    cd infrastructure/docker
-   docker-compose up -d
+   docker compose up -d
    ```
+
+   The local Compose stack reuses the cached `docker-backend:latest` and the
+   pinned local PostGIS image. It also reuses the existing `docker_postgres_data`
+   volume and fails instead of pulling an image that is not already cached.
 
 3. **Run database migrations**
    ```bash
-   cd backend
-   pip install -r requirements.txt
-   alembic upgrade head
+   cd ../../backend
+   poetry env use 3.11
+   poetry install
+   poetry run alembic upgrade head
    ```
 
 4. **Start the backend server**
    ```bash
-   uvicorn app.main:app --reload
+   poetry run uvicorn app.main:app --reload
+   ```
+
+   Run backend tests from the same `backend/` directory while the local PostGIS
+   service is running. The test setup creates the `saferoute_test` database if it
+   is missing and isolates each worker in its own schema:
+   ```bash
+   poetry lock
+   poetry install
+   poetry run pytest -n 4
    ```
 
 5. **Open Android project**
@@ -195,11 +209,16 @@ See the `docs/` folder for detailed architecture documentation.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Create a branch from `main` (`git switch -c fix/short-description`).
+2. Make and commit your changes on that branch.
+3. Push the branch (`git push -u origin fix/short-description`).
+4. Open a pull request targeting `main`.
+5. Wait for Backend CI and Android CI to pass before merging.
+
+Both CI workflows run for every pull request targeting `main` or `develop`.
+Repository settings must also require pull requests and the `test` and `build`
+status checks on `main`; see GitHub **Settings → Branches**. Without that branch
+rule, GitHub will allow direct pushes or merges with failing checks.
 
 ## Safety Disclaimer
 

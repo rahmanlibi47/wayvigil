@@ -2,18 +2,21 @@ package com.saferoute.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.saferoute.data.remote.DeviceIdManager
 import com.saferoute.data.remote.SafeRouteApi
 import com.saferoute.data.remote.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val safeRouteApi: SafeRouteApi,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val deviceIdManager: DeviceIdManager
 ) : ViewModel() {
 
     private val _isAuthenticated = MutableStateFlow(false)
@@ -26,28 +29,37 @@ class AuthViewModel @Inject constructor(
     val error: StateFlow<String?> = _error
 
     init {
-        checkAuthStatus()
-    }
-
-    private fun checkAuthStatus() {
         viewModelScope.launch {
-            _isLoading.value = true
             try {
-                val token = tokenManager.getToken()
-                _isAuthenticated.value = token != null
+                var hadSession = false
+                tokenManager.tokenFlow.collect { token ->
+                    val authenticated = token != null
+                    if (hadSession && !authenticated) {
+                        _error.value = "Your session expired. Please sign in again."
+                    }
+                    hadSession = authenticated
+                    _isAuthenticated.value = authenticated
+                    _isLoading.value = false
+                }
             } catch (e: Exception) {
                 _isAuthenticated.value = false
-            } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun anonymousLogin(deviceId: String, appVersion: String? = null) {
+    /**
+     * Performs anonymous login with a persistent device ID.
+     * The device ID is retrieved from storage or generated if it doesn't exist.
+     */
+    fun anonymousLogin(appVersion: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
+                // Get persistent device ID (generates and stores if not exists)
+                val deviceId = deviceIdManager.getDeviceId()
+
                 val response = safeRouteApi.anonymousLogin(deviceId, appVersion)
                 tokenManager.saveToken(response.accessToken)
                 tokenManager.saveUserId(response.user.id)
@@ -61,6 +73,10 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Signs out the current user and clears the session.
+     * Note: Device ID is preserved for analytics consistency.
+     */
     fun signOut() {
         viewModelScope.launch {
             tokenManager.clearToken()
@@ -68,6 +84,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Clears any error message.
+     */
     fun clearError() {
         _error.value = null
     }

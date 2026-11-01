@@ -1,15 +1,18 @@
 # SafeRoute AI - Local Development Docker Compose
-version: "3.8"
+name: saferoute-ai
 
 services:
   # PostgreSQL Database with PostGIS
   db:
-    image: postgis/postgis:15-3.4
+    image: postgis/postgis:15-3.4@sha256:3f4a5d48e0be9580ed70ed618cd039ce57bbb2dd113053d3836e28513f1f87cd
+    pull_policy: never
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: saferoute
     ports:
+      # Host port 5433 to avoid conflicts with local PostgreSQL installations
+      # Update your .env DATABASE_URL to use port 5433 when connecting from host
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -21,13 +24,19 @@ services:
 
   # Backend API
   backend:
-    build:
-      context: ../..
-      dockerfile: infrastructure/docker/Dockerfile.backend
+    image: docker-backend:latest
+    pull_policy: never
     environment:
+      # Internal Docker network uses service name 'db' and port 5432
       DATABASE_URL: postgresql://postgres:postgres@db:5432/saferoute
       DEBUG: "true"
-      SECRET_KEY: local-development-secret-key
+      ENVIRONMENT: "development"
+      # Use a secure secret for development (32+ characters)
+      # In production, use a cryptographically secure random value
+      SECRET_KEY: ${SECRET_KEY:-local-dev-compose-secret-7f4c9a2d1e6b8f3a}
+      # CORS allowed origins - in dev, allow localhost
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://localhost:8000"]'
+      RATE_LIMIT_PER_MINUTE: "60"
     ports:
       - "8000:8000"
     depends_on:
@@ -36,21 +45,9 @@ services:
     volumes:
       - ../../backend/app:/app/app
       - ../../backend/alembic:/app/alembic
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  # MinIO for local S3-compatible storage
-  minio:
-    image: minio/minio:latest
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:
   postgres_data:
-  minio_data:
+    external: true
+    name: docker_postgres_data

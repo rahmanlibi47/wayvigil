@@ -56,9 +56,7 @@ class HazardService:
                 srid=4326,
             ),
             location_accuracy=report_data.location.accuracy,
-            media_urls=(
-                ",".join(report_data.media_urls) if report_data.media_urls else None
-            ),
+            media_urls=report_data.media_urls,
             device_id=report_data.device_id,
             app_version=report_data.app_version,
         )

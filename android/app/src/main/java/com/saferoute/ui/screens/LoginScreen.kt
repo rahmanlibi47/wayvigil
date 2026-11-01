@@ -1,4 +1,3 @@
-
 package com.saferoute.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.saferoute.R
 import com.saferoute.ui.viewmodel.AuthViewModel
-import java.util.UUID
 
 @Composable
 fun LoginScreen(
@@ -100,8 +98,8 @@ fun LoginScreen(
 
             Button(
                 onClick = {
-                    val deviceId = UUID.randomUUID().toString()
-                    viewModel.anonymousLogin(deviceId)
+                    // Device ID is now managed internally by AuthViewModel
+                    viewModel.anonymousLogin()
                 },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -40,3 +40,8 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
+
+async def close_db_connections():
+    """Close all database connections."""
+    await engine.dispose()

@@ -72,7 +72,7 @@ class HazardReportResponse(BaseModel):
     status: HazardStatus
     location: Location
     description: Optional[str]
-    media_urls: Optional[str]
+    media_urls: Optional[List[str]]
     created_at: datetime
 
     class Config:

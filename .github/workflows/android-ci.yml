@@ -38,17 +38,17 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run ktlint
-        run: ./gradlew ktlintCheck
+        run: ./gradlew --max-workers=4 ktlintCheck
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
 
       - name: Run tests
-        run: ./gradlew test
+        run: ./gradlew --max-workers=4 test
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew --max-workers=4 assembleDebug
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
 

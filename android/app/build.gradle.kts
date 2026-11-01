@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.testing.Test
 
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
@@ -183,4 +184,8 @@ dependencies {
 
     // Android Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
+}
+
+tasks.withType<Test>().configureEach {
+    maxParallelForks = Runtime.getRuntime().availableProcessors().coerceAtMost(4).coerceAtLeast(1)
 }

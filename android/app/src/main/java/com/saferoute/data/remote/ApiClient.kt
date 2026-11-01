@@ -1,4 +1,3 @@
-
 package com.saferoute.data.remote
 
 import com.saferoute.BuildConfig
@@ -6,8 +5,6 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
-import io.ktor.client.plugins.auth.providers.BearerTokens
-import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
@@ -22,7 +19,7 @@ import javax.inject.Singleton
 
 @Singleton
 class ApiClient @Inject constructor(
-    private val tokenManager: TokenManager
+    private val authInterceptor: AuthInterceptor
 ) {
 
     val client: HttpClient = HttpClient(Android) {
@@ -53,20 +50,7 @@ class ApiClient @Inject constructor(
         }
 
         install(Auth) {
-            bearer {
-                loadTokens {
-                    tokenManager.getToken()?.let { token ->
-                        BearerTokens(
-                            accessToken = token,
-                            refreshToken = ""
-                        )
-                    }
-                }
-
-                sendWithoutRequest {
-                    true
-                }
-            }
+            with(authInterceptor) { configureBearerAuth() }
         }
 
         defaultRequest {

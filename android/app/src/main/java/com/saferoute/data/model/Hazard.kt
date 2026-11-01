@@ -61,7 +61,8 @@ data class HazardReport(
     val status: String,
     val location: Location,
     val description: String? = null,
-    val mediaUrls: String? = null,
+    @kotlinx.serialization.SerialName("media_urls")
+    val mediaUrls: List<String>? = null,
     val createdAt: String
 )
 
@@ -70,6 +71,7 @@ data class CreateHazardReportRequest(
     val hazardType: String,
     val description: String? = null,
     val location: Location,
+    @kotlinx.serialization.SerialName("media_urls")
     val mediaUrls: List<String>? = null,
     val deviceId: String? = null,
     val appVersion: String? = null

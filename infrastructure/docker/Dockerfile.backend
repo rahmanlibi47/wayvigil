@@ -9,9 +9,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies from the Poetry project manifest
+RUN pip install --no-cache-dir poetry==2.4.1
+ENV POETRY_VIRTUALENVS_CREATE=false
+COPY backend/pyproject.toml ./pyproject.toml
+RUN poetry install --only main --no-root --no-interaction --no-ansi
 
 # Copy application code
 COPY backend/app ./app

@@ -23,11 +23,21 @@ router = APIRouter()
 
 @router.get("/nearby", response_model=List[HazardResponse])
 async def get_nearby_hazards(
-    latitude: float = Query(..., ge=-90, le=90),
-    longitude: float = Query(..., ge=-180, le=180),
-    radius: float = Query(default=500, gt=0, le=5000),
-    include_unverified: bool = Query(default=False),
-    hazard_types: List[HazardType] = Query(default=None),
+    latitude: float = Query(
+        ..., ge=-90, le=90, description="Latitude in decimal degrees"
+    ),
+    longitude: float = Query(
+        ..., ge=-180, le=180, description="Longitude in decimal degrees"
+    ),
+    radius: float = Query(
+        default=500, gt=0, le=5000, description="Search radius in meters"
+    ),
+    include_unverified: bool = Query(
+        default=False, description="Include unverified hazards"
+    ),
+    hazard_types: List[HazardType] = Query(
+        default=None, description="Filter by hazard types"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Get hazards near a location."""
@@ -101,5 +111,10 @@ async def delete_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    # TODO: Check if report belongs to current user
+    # Verify ownership before deletion
+    if report.reporter_id is None or str(report.reporter_id) != str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this report",
+        )
     await hazard_service.delete_report(report_id)

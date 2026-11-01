@@ -8,8 +8,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import engine, init_db
+from app.core.database import close_db_connections, init_db
 from app.core.logging import setup_logging
+from app.core.rate_limit import RateLimitMiddleware
 
 
 @asynccontextmanager
@@ -20,7 +21,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     yield
     # Shutdown
-    await engine.dispose()
+    await close_db_connections()
 
 
 app = FastAPI(
@@ -32,7 +33,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware
+# Middleware - Order matters: Rate limit first, then CORS, then compression
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,

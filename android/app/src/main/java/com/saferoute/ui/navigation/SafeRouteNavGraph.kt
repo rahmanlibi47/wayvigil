@@ -1,6 +1,7 @@
 package com.saferoute.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,6 +31,16 @@ fun SafeRouteNavGraph(
     isAuthenticated: Boolean,
     onSignOut: () -> Unit
 ) {
+    LaunchedEffect(isAuthenticated) {
+        val currentRoute = navController.currentDestination?.route
+        if (!isAuthenticated && currentRoute != Screen.Login.route && currentRoute != Screen.Splash.route) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(Screen.Home.route) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = if (isAuthenticated) Screen.Home.route else Screen.Login.route
@@ -92,9 +103,6 @@ fun SafeRouteNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onSignOut = {
                     onSignOut()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
                 }
             )
         }

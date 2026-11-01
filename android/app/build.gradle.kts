@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 import java.util.Properties
 
 val localProperties = Properties().apply {
@@ -10,6 +11,16 @@ val localProperties = Properties().apply {
 val mapsApiKey = localProperties.getProperty("MAPS_API_KEY")
     ?: System.getenv("MAPS_API_KEY")
     ?: ""
+
+// Environment-specific API configuration
+// For emulator: 10.0.2.2 maps to host machine localhost
+// For real devices: Use actual server IP or domain
+// Defaults to the emulator loopback address.
+val apiBaseUrl = localProperties.getProperty("API_BASE_URL")
+    ?: System.getenv("API_BASE_URL")
+    ?: "http://10.0.2.2:8000"
+val releaseApiBaseUrl = localProperties.getProperty("API_BASE_URL_RELEASE")
+    ?: "https://api.saferoute.ai"
 
 plugins {
     id("com.android.application")
@@ -38,8 +49,8 @@ android {
             useSupportLibrary = true
         }
 
-        // API Configuration
-        buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:8000\"")
+        // API Configuration - Uses local.properties or environment variable
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "API_VERSION", "\"v1\"")
     }
 
@@ -51,16 +62,22 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Release builds should use HTTPS production URL
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"$releaseApiBaseUrl\""
+            )
         }
 
         debug {
             isDebuggable = true
             manifestPlaceholders["usesCleartextTraffic"] = "true"
-
+            // Debug builds use local development server
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"http://127.0.0.1:8000\""
+                "\"$apiBaseUrl\""
             )
         }
     }
@@ -167,4 +184,8 @@ dependencies {
 
     // Android Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
+}
+
+tasks.withType<Test>().configureEach {
+    maxParallelForks = Runtime.getRuntime().availableProcessors().coerceAtMost(4).coerceAtLeast(1)
 }

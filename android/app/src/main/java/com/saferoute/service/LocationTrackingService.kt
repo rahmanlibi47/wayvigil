@@ -23,6 +23,10 @@ import com.saferoute.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Service that tracks device location in the foreground.
+ * Handles permission errors gracefully and notifies listeners of issues.
+ */
 class LocationTrackingService : Service() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -34,7 +38,19 @@ class LocationTrackingService : Service() {
     private val _currentSpeed = MutableStateFlow(0f)
     val currentSpeed: StateFlow<Float> = _currentSpeed
 
+    private val _permissionError = MutableStateFlow<LocationPermissionError?>(null)
+    val permissionError: StateFlow<LocationPermissionError?> = _permissionError
+
     private var locationCallback: LocationCallback? = null
+
+    /**
+     * Represents different types of location permission errors.
+     */
+    sealed class LocationPermissionError {
+        data object MissingPermission : LocationPermissionError()
+        data object PermissionDenied : LocationPermissionError()
+        data class Unknown(val exception: Exception) : LocationPermissionError()
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): LocationTrackingService = this@LocationTrackingService
@@ -128,16 +144,62 @@ class LocationTrackingService : Service() {
                 locationCallback!!,
                 Looper.getMainLooper()
             )
+            // Clear any previous error on success
+            _permissionError.value = null
         } catch (e: SecurityException) {
-            // Handle permission error
+            // Permission not granted - notify listeners
+            android.util.Log.e(TAG, "Location permission not granted", e)
+            _permissionError.value = LocationPermissionError.MissingPermission
+
+            // Update notification to inform user
+            updateNotificationForError("Location permission required for navigation")
+
+            // Stop the service after notifying
+            stopSelf()
+        } catch (e: Exception) {
+            // Handle other errors
+            android.util.Log.e(TAG, "Error starting location updates", e)
+            _permissionError.value = LocationPermissionError.Unknown(e)
             stopSelf()
         }
     }
 
+    private fun updateNotificationForError(message: String) {
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("SafeRoute Navigation")
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
     private fun stopLocationUpdates() {
         locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
+            try {
+                fusedLocationClient.removeLocationUpdates(it)
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Error stopping location updates", e)
+            }
         }
+    }
+
+    /**
+     * Clears the current permission error state.
+     */
+    fun clearPermissionError() {
+        _permissionError.value = null
     }
 
     companion object {
@@ -145,5 +207,6 @@ class LocationTrackingService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val UPDATE_INTERVAL_MS = 1000L // 1 second
         private const val FASTEST_UPDATE_INTERVAL_MS = 500L // 500ms
+        private const val TAG = "LocationTrackingService"
     }
 }

@@ -1,5 +1,6 @@
 package com.saferoute.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -62,7 +64,6 @@ fun NavigationScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
-    val selectedDestination by viewModel.selectedDestination.collectAsState()
 
     // Default to India (Bangalore)
     val defaultLocation = LatLng(12.9716, 77.5946)
@@ -266,6 +267,7 @@ private fun SearchResultItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -387,7 +389,12 @@ private fun ReroutePrompt(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row {
-                // TODO: Add reroute/continue buttons
+                TextButton(onClick = onReroute) {
+                    Text("Reroute")
+                }
+                TextButton(onClick = onContinue) {
+                    Text("Continue")
+                }
             }
         }
     }

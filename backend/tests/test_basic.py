@@ -1,18 +1,22 @@
-"""Basic tests that don't require external dependencies."""
+"""Smoke tests for public API behavior."""
+
+import pytest
+from httpx import AsyncClient
 
 
-def test_basic_math():
-    """Test basic math works."""
-    assert 1 + 1 == 2
+@pytest.mark.asyncio
+async def test_health_endpoint_reports_healthy_service(client: AsyncClient):
+    response = await client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+    assert response.json()["version"]
 
 
-def test_string_operations():
-    """Test string operations."""
-    assert "hello".upper() == "HELLO"
+@pytest.mark.asyncio
+async def test_root_endpoint_returns_project_metadata(client: AsyncClient):
+    response = await client.get("/")
 
-
-def test_list_operations():
-    """Test list operations."""
-    items = [1, 2, 3]
-    assert len(items) == 3
-    assert sum(items) == 6
+    assert response.status_code == 200
+    assert response.json()["name"] == "WayVigil AI"
+    assert response.json()["version"]

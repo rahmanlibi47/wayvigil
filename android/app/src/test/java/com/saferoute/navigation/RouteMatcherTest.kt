@@ -35,8 +35,10 @@ class RouteMatcherTest {
 
         val result = routeMatcher.matchLocationToRoute(location, route)
 
-        // Just verify we get a result (either OnRoute or OffRoute)
-        assertNotNull(result)
+        assertTrue(result is RouteMatcher.MatchResult.OnRoute)
+        if (result is RouteMatcher.MatchResult.OnRoute) {
+            assertTrue(result.distanceToRoute < 10f)
+        }
     }
 
     @Test
@@ -73,20 +75,49 @@ class RouteMatcherTest {
             )
         )
 
-        // Location at start of route
+        // Progress should range from zero at the start to one at the endpoint.
         val startLocation = LocationData(12.9716, 77.5946, 5f)
         val startResult = routeMatcher.matchLocationToRoute(startLocation, route)
-
-        // Reset for second test
         routeMatcher.reset()
-
-        // Location at end of route
         val endLocation = LocationData(12.9816, 77.5946, 5f)
         val endResult = routeMatcher.matchLocationToRoute(endLocation, route)
 
-        // Just verify we get results
-        assertNotNull(startResult)
-        assertNotNull(endResult)
+        assertTrue(startResult is RouteMatcher.MatchResult.OnRoute)
+        assertTrue(endResult is RouteMatcher.MatchResult.OnRoute)
+        if (startResult is RouteMatcher.MatchResult.OnRoute) {
+            assertEquals(0f, startResult.progressFraction, 0.001f)
+        }
+        if (endResult is RouteMatcher.MatchResult.OnRoute) {
+            assertEquals(1f, endResult.progressFraction, 0.001f)
+        }
+    }
+
+    @Test
+    fun `matchLocationToRoute requests GPS check for inaccurate location`() {
+        val route = createRouteFromPoints(
+            listOf(LatLng(12.9716, 77.5946), LatLng(12.9816, 77.5946))
+        )
+        val location = LocationData(12.9766, 77.5946, accuracy = 100f)
+
+        val result = routeMatcher.matchLocationToRoute(location, route)
+
+        assertTrue(result is RouteMatcher.MatchResult.OffRoute)
+        if (result is RouteMatcher.MatchResult.OffRoute) {
+            assertEquals(RouteMatcher.SuggestedAction.CHECK_GPS, result.suggestedAction)
+        }
+    }
+
+    @Test
+    fun `matchLocationToRoute requests reroute for empty route`() {
+        val route = createRouteFromPoints(emptyList())
+        val location = LocationData(12.9716, 77.5946, accuracy = 5f)
+
+        val result = routeMatcher.matchLocationToRoute(location, route)
+
+        assertTrue(result is RouteMatcher.MatchResult.OffRoute)
+        if (result is RouteMatcher.MatchResult.OffRoute) {
+            assertEquals(RouteMatcher.SuggestedAction.REROUTE, result.suggestedAction)
+        }
     }
 
     @Test

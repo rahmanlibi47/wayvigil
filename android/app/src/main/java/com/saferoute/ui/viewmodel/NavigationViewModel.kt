@@ -96,7 +96,7 @@ class NavigationViewModel @Inject constructor(
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
         if (query.length >= 3) {
-            performSearch(query)
+            performSearch()
         } else {
             _searchResults.value = emptyList()
         }
@@ -105,7 +105,7 @@ class NavigationViewModel @Inject constructor(
     /**
      * Performs place search
      */
-    private fun performSearch(query: String) {
+    private fun performSearch() {
         viewModelScope.launch {
             _isSearching.value = true
             try {
@@ -140,17 +140,9 @@ class NavigationViewModel @Inject constructor(
      * Calculates route to selected destination
      */
     fun calculateRoute() {
-        val destination = _selectedDestination.value ?: return
+        if (_selectedDestination.value == null) return
 
-        viewModelScope.launch {
-            // TODO: Call Routes API to calculate route
-            // For now, simulate a route calculation
-            val currentLocation = navigationManager.getLastLocation()
-            if (currentLocation != null) {
-                // Mock route for testing
-                // TODO: Replace with actual Routes API call
-            }
-        }
+        // TODO: Request a route from the Routes API.
     }
 
     /**

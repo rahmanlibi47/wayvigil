@@ -23,7 +23,6 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.config import Settings  # noqa: E402
 from app.core.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
@@ -150,18 +149,3 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
             yield ac
     finally:
         app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture
-def test_settings():
-    """Return test settings."""
-    return Settings()
-
-
-@pytest.fixture
-def auth_headers():
-    """Return headers for authenticated requests."""
-    from app.core.security import create_access_token
-
-    token = create_access_token({"sub": "test-user-id", "type": "anonymous"})
-    return {"Authorization": f"Bearer {token}"}

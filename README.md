@@ -128,10 +128,11 @@ wayvigil/
 
 5. **Open Android project**
    - Open `android/` folder in Android Studio
-   - Add your Google Maps API key to `local.properties`:
+   - Add a Maps SDK for Android key to `android/local.properties` and restrict it to this Android app's package name and signing certificate:
      ```
      MAPS_API_KEY=your_api_key_here
      ```
+   - For a physical device, set `API_BASE_URL` in `android/local.properties` to the development computer's LAN address, for example `http://192.168.1.20:8000`.
    - Run the app on an emulator or device
 
 ### Environment Variables
@@ -145,6 +146,8 @@ DEBUG=true
 GOOGLE_MAPS_API_KEY=your_maps_api_key
 FIREBASE_PROJECT_ID=your_firebase_project
 ```
+
+For Docker-based local development, add `GOOGLE_MAPS_API_KEY` to the root `.env.local` file used by `start-local.bat`. This is the server key for Places API (New) and Routes API; restrict it to those APIs. Keep it separate from the Android Maps SDK key and never commit either key.
 
 ## API Documentation
 
@@ -165,6 +168,8 @@ When the backend is running, API documentation is available at:
 - [ ] GPS tracking service
 - [ ] Route calculation
 - [ ] Turn-by-turn navigation
+
+See [Milestone 2 scope and acceptance cases](docs/MILESTONE_2_SCOPE.md) for the implementation sequence, deferred features, and manual checks.
 
 ### Milestone 3: Hazard Reporting (Weeks 13-18)
 - [ ] Reporting UI

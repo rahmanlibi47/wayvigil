@@ -89,6 +89,26 @@ class RouteMatcherTest {
         }
         if (endResult is RouteMatcher.MatchResult.OnRoute) {
             assertEquals(1f, endResult.progressFraction, 0.001f)
+            assertTrue(endResult.distanceToDestinationMeters < 2f)
+        }
+    }
+
+    @Test
+    fun `progress fraction follows traveled geometry instead of vertex count`() {
+        val route = createRouteFromPoints(
+            listOf(
+                LatLng(12.9716, 77.5946),
+                LatLng(12.9726, 77.5946),
+                LatLng(12.9826, 77.5946)
+            )
+        )
+        val locationAtFirstVertex = LocationData(12.9726, 77.5946, 5f)
+
+        val result = routeMatcher.matchLocationToRoute(locationAtFirstVertex, route)
+
+        assertTrue(result is RouteMatcher.MatchResult.OnRoute)
+        if (result is RouteMatcher.MatchResult.OnRoute) {
+            assertTrue(result.progressFraction in 0.07f..0.12f)
         }
     }
 

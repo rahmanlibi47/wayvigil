@@ -19,8 +19,12 @@ class LocationFilter(
      * Returns null if the reading should be rejected.
      */
     fun process(location: LocationData): LocationData? {
-        // Check basic accuracy requirement
-        if (!location.hasAcceptableAccuracy()) {
+        val ageMs = System.currentTimeMillis() - location.timestamp
+        if (!location.latitude.isFinite() || !location.longitude.isFinite() ||
+            location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0 ||
+            !location.hasAcceptableAccuracy() || ageMs > maxAgeMs ||
+            ageMs < -MAX_FUTURE_TIMESTAMP_TOLERANCE_MS
+        ) {
             return null
         }
 
@@ -96,6 +100,7 @@ class LocationFilter(
     }
 
     companion object {
+        private const val MAX_FUTURE_TIMESTAMP_TOLERANCE_MS = 2000L
         const val EARTH_RADIUS_METERS = 6371000.0
         const val DEFAULT_MIN_DISTANCE_METERS = 3f // Filter movements less than 3 meters
         const val DEFAULT_MAX_AGE_MS = 5000L // 5 seconds

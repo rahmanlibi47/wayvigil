@@ -72,7 +72,7 @@ fun SafeRouteNavGraph(
 
         composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToMap = { navController.navigate(Screen.Map.route) },
+                onNavigateToNavigation = { navController.navigate(Screen.Navigation.route) },
                 onNavigateToReport = { navController.navigate(Screen.ReportHazard.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) }

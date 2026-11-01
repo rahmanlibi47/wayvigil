@@ -125,4 +125,27 @@ class LocationFilterTest {
 
         assertNotNull(result)
     }
+
+    @Test
+    fun `process rejects stale locations`() {
+        val staleLocation = LocationData(
+            latitude = 12.9716,
+            longitude = 77.5946,
+            accuracy = 5f,
+            timestamp = System.currentTimeMillis() - 10_000
+        )
+
+        assertNull(locationFilter.process(staleLocation))
+    }
+
+    @Test
+    fun `process rejects coordinates outside valid ranges`() {
+        val invalidLocation = LocationData(
+            latitude = 91.0,
+            longitude = 77.5946,
+            accuracy = 5f
+        )
+
+        assertNull(locationFilter.process(invalidLocation))
+    }
 }

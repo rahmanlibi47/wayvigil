@@ -152,10 +152,14 @@ class RouteMatcher(
             val dx = endXY.first - startXY.first
             val dy = endXY.second - startXY.second
             val segmentLengthSquared = dx * dx + dy * dy
-            val fraction = if (segmentLengthSquared == 0.0) 0.0 else {
-                (((locationPoint.first - startXY.first) * dx +
-                    (locationPoint.second - startXY.second) * dy) / segmentLengthSquared)
-                    .coerceIn(0.0, 1.0)
+            val fraction = if (segmentLengthSquared == 0.0) {
+                0.0
+            } else {
+                val locationDeltaX = locationPoint.first - startXY.first
+                val locationDeltaY = locationPoint.second - startXY.second
+                val projectedDistanceAlongSegment =
+                    (locationDeltaX * dx + locationDeltaY * dy) / segmentLengthSquared
+                projectedDistanceAlongSegment.coerceIn(0.0, 1.0)
             }
             val projected = LatLng(
                 start.latitude + (end.latitude - start.latitude) * fraction,

@@ -34,8 +34,7 @@ class ReportHazardViewModel @Inject constructor(
     fun submitReport(
         hazardType: HazardType,
         description: String?,
-        onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -47,7 +46,6 @@ class ReportHazardViewModel @Inject constructor(
 
                 if (locationResult == null) {
                     _error.value = "Unable to get location. Please try again."
-                    onError("Unable to get location")
                     return@launch
                 }
 
@@ -77,7 +75,6 @@ class ReportHazardViewModel @Inject constructor(
             } catch (e: Exception) {
                 val errorMessage = e.message ?: "Failed to submit report"
                 _error.value = errorMessage
-                onError(errorMessage)
             } finally {
                 _isSubmitting.value = false
             }

@@ -12,7 +12,6 @@ class LocationFilter(
     private val minDistanceMeters: Float = DEFAULT_MIN_DISTANCE_METERS,
     private val maxAgeMs: Long = DEFAULT_MAX_AGE_MS
 ) {
-    private var lastLocation: LocationData? = null
     private var lastAcceptedLocation: LocationData? = null
 
     /**
@@ -30,7 +29,6 @@ class LocationFilter(
         // First location is always accepted
         if (lastLoc == null) {
             lastAcceptedLocation = location
-            lastLocation = location
             return location
         }
 
@@ -39,7 +37,6 @@ class LocationFilter(
         if (timeDelta > maxAgeMs) {
             // Location is stale, accept it but reset tracking
             lastAcceptedLocation = location
-            lastLocation = location
             return location
         }
 
@@ -48,14 +45,12 @@ class LocationFilter(
 
         // Filter out micro-movements (GPS jitter when stationary)
         if (distance < minDistanceMeters && location.speed < 1f) {
-            // Reject reading, but update last location for tracking
-            lastLocation = location
+            // Reject micro-movement while the user is stationary.
             return null
         }
 
         // Accept the location
         lastAcceptedLocation = location
-        lastLocation = location
         return location
     }
 
@@ -97,7 +92,6 @@ class LocationFilter(
      * Resets the filter
      */
     fun reset() {
-        lastLocation = null
         lastAcceptedLocation = null
     }
 

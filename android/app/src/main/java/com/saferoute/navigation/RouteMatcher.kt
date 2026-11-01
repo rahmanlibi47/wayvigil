@@ -10,8 +10,7 @@ import kotlin.math.abs
  * Used for deviation detection and progress tracking.
  */
 class RouteMatcher(
-    private val maxDeviationMeters: Float = DEFAULT_MAX_DEVIATION_METERS,
-    private val minHeadingConfidence: Float = DEFAULT_MIN_HEADING_CONFIDENCE
+    private val maxDeviationMeters: Float = DEFAULT_MAX_DEVIATION_METERS
 ) {
 
     private val locationFilter = LocationFilter()
@@ -67,45 +66,49 @@ class RouteMatcher(
 
         // Find nearest point on route
         val currentLatLng = LatLng(filteredLocation.latitude, filteredLocation.longitude)
-        val (nearestPoint, nearestIndex, minDistance) = findNearestPoint(currentLatLng, routePoints)
+        val match = findNearestPoint(currentLatLng, routePoints)
 
         // Calculate progress
-        val progressFraction = nearestIndex.toFloat() / routePoints.size.coerceAtLeast(1)
+        val progressFraction = if (routePoints.size > 1) {
+            match.progressFraction
+        } else {
+            0f
+        }
 
         // Check heading alignment if available
         val headingAligned = currentHeading?.let { heading ->
-            isHeadingAligned(heading, nearestIndex, routePoints)
+            isHeadingAligned(heading, match.segmentIndex, routePoints)
         } ?: true
 
         // Determine if on or off route
         return when {
-            minDistance <= maxDeviationMeters && headingAligned -> {
+            match.distanceMeters <= maxDeviationMeters && headingAligned -> {
                 MatchResult.OnRoute(
                     progressFraction = progressFraction,
-                    distanceToRoute = minDistance,
-                    nearestPoint = nearestPoint
+                    distanceToRoute = match.distanceMeters,
+                    nearestPoint = match.point
                 )
             }
-            minDistance <= maxDeviationMeters * 2 && headingAligned -> {
+            match.distanceMeters <= maxDeviationMeters * 2 && headingAligned -> {
                 // Slightly off but heading in right direction
                 MatchResult.OffRoute(
-                    distanceToRoute = minDistance,
-                    nearestPoint = nearestPoint,
+                    distanceToRoute = match.distanceMeters,
+                    nearestPoint = match.point,
                     suggestedAction = SuggestedAction.CONTINUE
                 )
             }
-            minDistance > maxDeviationMeters * 3 -> {
+            match.distanceMeters > maxDeviationMeters * 3 -> {
                 // Way off route
                 MatchResult.OffRoute(
-                    distanceToRoute = minDistance,
-                    nearestPoint = nearestPoint,
+                    distanceToRoute = match.distanceMeters,
+                    nearestPoint = match.point,
                     suggestedAction = SuggestedAction.REROUTE
                 )
             }
             else -> {
                 MatchResult.OffRoute(
-                    distanceToRoute = minDistance,
-                    nearestPoint = nearestPoint,
+                    distanceToRoute = match.distanceMeters,
+                    nearestPoint = match.point,
                     suggestedAction = SuggestedAction.CONTINUE
                 )
             }
@@ -115,24 +118,61 @@ class RouteMatcher(
     /**
      * Finds the nearest point on the route to the given location
      */
+    private data class RouteMatch(
+        val point: LatLng,
+        val segmentIndex: Int,
+        val progressFraction: Float,
+        val distanceMeters: Float
+    )
+
     private fun findNearestPoint(
         location: LatLng,
         routePoints: List<LatLng>
-    ): Triple<LatLng, Int, Float> {
-        var minDistance = Float.MAX_VALUE
-        var nearestPoint = routePoints.first()
-        var nearestIndex = 0
-
-        routePoints.forEachIndexed { index, point ->
-            val distance = calculateDistance(location, point)
-            if (distance < minDistance) {
-                minDistance = distance
-                nearestPoint = point
-                nearestIndex = index
-            }
+    ): RouteMatch {
+        if (routePoints.size == 1) {
+            val point = routePoints.first()
+            return RouteMatch(point, 0, 0f, calculateDistance(location, point))
         }
 
-        return Triple(nearestPoint, nearestIndex, minDistance)
+        val earthRadius = LocationFilter.EARTH_RADIUS_METERS
+        val referenceLatitude = Math.toRadians(location.latitude)
+        fun project(point: LatLng): Pair<Double, Double> {
+            val x = Math.toRadians(point.longitude) * kotlin.math.cos(referenceLatitude) * earthRadius
+            val y = Math.toRadians(point.latitude) * earthRadius
+            return x to y
+        }
+
+        val locationPoint = project(location)
+        var best: RouteMatch? = null
+        for (index in 0 until routePoints.lastIndex) {
+            val start = routePoints[index]
+            val end = routePoints[index + 1]
+            val startXY = project(start)
+            val endXY = project(end)
+            val dx = endXY.first - startXY.first
+            val dy = endXY.second - startXY.second
+            val segmentLengthSquared = dx * dx + dy * dy
+            val fraction = if (segmentLengthSquared == 0.0) 0.0 else {
+                (((locationPoint.first - startXY.first) * dx +
+                    (locationPoint.second - startXY.second) * dy) / segmentLengthSquared)
+                    .coerceIn(0.0, 1.0)
+            }
+            val projected = LatLng(
+                start.latitude + (end.latitude - start.latitude) * fraction,
+                start.longitude + (end.longitude - start.longitude) * fraction
+            )
+            val distance = calculateDistance(location, projected)
+            val currentBest = best
+            if (currentBest == null || distance < currentBest.distanceMeters) {
+                best = RouteMatch(
+                    point = projected,
+                    segmentIndex = index,
+                    progressFraction = (index + fraction).toFloat() / (routePoints.size - 1),
+                    distanceMeters = distance
+                )
+            }
+        }
+        return requireNotNull(best)
     }
 
     /**
@@ -236,6 +276,5 @@ class RouteMatcher(
 
     companion object {
         const val DEFAULT_MAX_DEVIATION_METERS = 50f
-        const val DEFAULT_MIN_HEADING_CONFIDENCE = 0.7f
     }
 }

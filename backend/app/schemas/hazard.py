@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from geoalchemy2.shape import to_shape
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.hazard import HazardSeverity, HazardStatus, HazardType
 
@@ -51,6 +52,15 @@ class HazardResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_validator("location", mode="before")
+    @classmethod
+    def convert_geometry_to_location(cls, value):
+        """Convert a database geometry point to API latitude/longitude fields."""
+        if isinstance(value, Location):
+            return value
+        point = to_shape(value)
+        return {"latitude": point.y, "longitude": point.x}
+
 
 class HazardReportCreate(BaseModel):
     """Hazard report creation schema."""
@@ -77,6 +87,15 @@ class HazardReportResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("location", mode="before")
+    @classmethod
+    def convert_geometry_to_location(cls, value):
+        """Convert a database geometry point to API latitude/longitude fields."""
+        if isinstance(value, Location):
+            return value
+        point = to_shape(value)
+        return {"latitude": point.y, "longitude": point.x}
 
 
 class NearbyHazardQuery(BaseModel):

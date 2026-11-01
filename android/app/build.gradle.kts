@@ -14,9 +14,12 @@ val mapsApiKey = localProperties.getProperty("MAPS_API_KEY")
 // Environment-specific API configuration
 // For emulator: 10.0.2.2 maps to host machine localhost
 // For real devices: Use actual server IP or domain
+// Defaults to the emulator loopback address.
 val apiBaseUrl = localProperties.getProperty("API_BASE_URL")
     ?: System.getenv("API_BASE_URL")
-    ?: "http://10.0.2.2:8000"  // Default to emulator loopback
+    ?: "http://10.0.2.2:8000"
+val releaseApiBaseUrl = localProperties.getProperty("API_BASE_URL_RELEASE")
+    ?: "https://api.saferoute.ai"
 
 plugins {
     id("com.android.application")
@@ -62,7 +65,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${localProperties.getProperty(\"API_BASE_URL_RELEASE\") ?: \"https://api.saferoute.ai\"}\""
+                "\"$releaseApiBaseUrl\""
             )
         }
 

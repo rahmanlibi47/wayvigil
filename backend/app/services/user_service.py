@@ -87,7 +87,11 @@ class UserService:
         email = claims.get("email")
         email_user = await self.get_by_email(email) if email else None
         if email_user is not None and email_user is not user:
-            if user is not None or not claims.get("email_verified") or email_user.firebase_uid:
+            if (
+                user is not None
+                or not claims.get("email_verified")
+                or email_user.firebase_uid
+            ):
                 raise ValueError("Email is already linked to another account")
             user = email_user
 

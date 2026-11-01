@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.firebase import FirebaseAuthUnavailable, InvalidFirebaseToken, verify_firebase_token
+from app.core.firebase import (
+    FirebaseAuthUnavailable,
+    InvalidFirebaseToken,
+    verify_firebase_token,
+)
 from app.core.security import create_access_token, decode_token
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import UserService
@@ -134,7 +138,9 @@ async def firebase_login(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated"
+        )
 
     access_token = create_access_token(
         data={"sub": str(user.id), "type": "firebase"},

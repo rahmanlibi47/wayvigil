@@ -24,16 +24,18 @@ class AuthInterceptor @Inject constructor(
     private val tokenManager: TokenManager,
     private val deviceIdManager: DeviceIdManager
 ) {
-    fun Auth.Config.configureBearerAuth() {
+    fun Auth.configureBearerAuth() {
         bearer {
             loadTokens {
                 tokenManager.getToken()?.let { BearerTokens(it, "") }
             }
             refreshTokens {
-                reauthenticate()?.also {
-                    tokenManager.saveToken(it.accessToken)
-                    tokenManager.saveUserId(it.user.id)
-                } ?: run {
+                val response = reauthenticate()
+                if (response != null) {
+                    tokenManager.saveToken(response.accessToken)
+                    tokenManager.saveUserId(response.user.id)
+                    BearerTokens(response.accessToken, "")
+                } else {
                     tokenManager.clearToken()
                     null
                 }
@@ -42,11 +44,9 @@ class AuthInterceptor @Inject constructor(
         }
     }
 
-    private suspend fun reauthenticate(): BearerTokens? {
+    private suspend fun reauthenticate(): TokenResponse? {
         return try {
-            val response = anonymousLogin(deviceIdManager.getDeviceId())
-                ?: return null
-            BearerTokens(response.accessToken, "")
+            anonymousLogin(deviceIdManager.getDeviceId())
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Session recovery failed", e)
             null

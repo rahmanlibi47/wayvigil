@@ -114,7 +114,8 @@ class Settings(BaseSettings):
                 raise ValueError("DEBUG cannot be True in production environment")
             if not self.CORS_ORIGINS or "*" in self.CORS_ORIGINS:
                 raise ValueError(
-                    "CORS_ORIGINS must be explicitly set with specific origins in production"
+                    "CORS_ORIGINS must be explicitly set with specific origins "
+                    "in production"
                 )
         return self
 

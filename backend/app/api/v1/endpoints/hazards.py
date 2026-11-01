@@ -23,11 +23,21 @@ router = APIRouter()
 
 @router.get("/nearby", response_model=List[HazardResponse])
 async def get_nearby_hazards(
-    latitude: float = Query(..., ge=-90, le=90, description="Latitude in decimal degrees"),
-    longitude: float = Query(..., ge=-180, le=180, description="Longitude in decimal degrees"),
-    radius: float = Query(default=500, gt=0, le=5000, description="Search radius in meters"),
-    include_unverified: bool = Query(default=False, description="Include unverified hazards"),
-    hazard_types: List[HazardType] = Query(default=None, description="Filter by hazard types"),
+    latitude: float = Query(
+        ..., ge=-90, le=90, description="Latitude in decimal degrees"
+    ),
+    longitude: float = Query(
+        ..., ge=-180, le=180, description="Longitude in decimal degrees"
+    ),
+    radius: float = Query(
+        default=500, gt=0, le=5000, description="Search radius in meters"
+    ),
+    include_unverified: bool = Query(
+        default=False, description="Include unverified hazards"
+    ),
+    hazard_types: List[HazardType] = Query(
+        default=None, description="Filter by hazard types"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Get hazards near a location."""

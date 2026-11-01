@@ -39,7 +39,12 @@ def verify_firebase_token(token: str) -> Dict[str, Any]:
                 app = firebase_admin.initialize_app(credential, options=options)
 
         return auth.verify_id_token(token, app=app, check_revoked=True)
-    except (auth.InvalidIdTokenError, auth.ExpiredIdTokenError, auth.RevokedIdTokenError, auth.UserDisabledError) as exc:
+    except (
+        auth.InvalidIdTokenError,
+        auth.ExpiredIdTokenError,
+        auth.RevokedIdTokenError,
+        auth.UserDisabledError,
+    ) as exc:
         raise InvalidFirebaseToken from exc
     except Exception as exc:
         raise FirebaseAuthUnavailable from exc

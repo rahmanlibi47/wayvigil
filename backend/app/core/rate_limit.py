@@ -144,15 +144,19 @@ class RateLimitMiddleware:
         is_allowed, _ = self._limiter.is_allowed(key, self.limit)
 
         if not is_allowed:
-            await send({
-                "type": "http.response.start",
-                "status": 429,
-                "headers": [(b"content-type", b"application/json")],
-            })
-            await send({
-                "type": "http.response.body",
-                "body": b'{"detail": "Rate limit exceeded"}',
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"detail": "Rate limit exceeded"}',
+                }
+            )
             return
 
         await self.app(scope, receive, send)

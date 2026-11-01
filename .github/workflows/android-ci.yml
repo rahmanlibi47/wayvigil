@@ -26,29 +26,18 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run ktlint
-        run: ./gradlew --max-workers=4 ktlintCheck
-        env:
-          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
-
-      - name: Run tests
-        run: ./gradlew --max-workers=4 test
-        env:
-          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
-
-      - name: Build debug APK
-        run: ./gradlew --max-workers=4 assembleDebug
+      - name: Run Android checks and build
+        run: >-
+          ./gradlew --max-workers=4 --build-cache ktlintCheck testDebugUnitTest
+          compileReleaseKotlin assembleDebug
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY || '' }}
 

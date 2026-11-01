@@ -37,7 +37,7 @@ class ApiClient @Inject constructor(
         install(Logging) {
             logger = object : Logger {
                 override fun log(message: String) {
-                    android.util.Log.d("SafeRoute API", message)
+                    android.util.Log.d("WayVigil AI API", message)
                 }
             }
             level = if (BuildConfig.DEBUG) LogLevel.ALL else LogLevel.NONE

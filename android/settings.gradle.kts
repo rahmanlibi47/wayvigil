@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SafeRoute AI"
+rootProject.name = "WayVigil AI"
 include(":app")

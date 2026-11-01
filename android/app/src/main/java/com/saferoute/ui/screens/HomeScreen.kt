@@ -47,7 +47,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "SafeRoute AI",
+                        text = "WayVigil AI",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )

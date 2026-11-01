@@ -116,7 +116,7 @@ async def firebase_login(
     request: FirebaseLoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Verify a Firebase ID token and issue a SafeRoute access token."""
+    """Verify a Firebase ID token and issue a WayVigil access token."""
     try:
         claims = await asyncio.to_thread(verify_firebase_token, request.firebase_token)
     except InvalidFirebaseToken:

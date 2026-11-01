@@ -51,13 +51,13 @@ fun SplashScreen(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "SafeRoute Logo",
+                contentDescription = "WayVigil AI logo",
                 modifier = Modifier.size(120.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "SafeRoute AI",
+                text = "WayVigil AI",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold

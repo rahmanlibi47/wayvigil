@@ -3,6 +3,11 @@ package com.saferoute.ui.screens
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.location.Location
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -48,14 +53,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +76,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
@@ -79,11 +90,22 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
+import com.saferoute.data.model.LocationData
 import com.saferoute.data.model.NavigationState
 import com.saferoute.data.model.NavigationTravelMode
+import com.saferoute.navigation.NavigationCameraMode
+import com.saferoute.navigation.NavigationCameraOwner
+import com.saferoute.navigation.NavigationCameraPolicy
 import com.saferoute.navigation.NavigationManager
 import com.saferoute.navigation.VoiceGuidancePlayer
 import com.saferoute.ui.viewmodel.NavigationViewModel
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,6 +115,7 @@ fun NavigationScreen(
     viewModel: NavigationViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val fusedLocationClient = remember(context) {
@@ -137,6 +160,17 @@ fun NavigationScreen(
     }
     var oneShotLocation by rememberSaveable(stateSaver = latLngSaver) {
         mutableStateOf<LatLng?>(null)
+    }
+    var cameraMode by rememberSaveable { mutableStateOf(NavigationCameraMode.OVERVIEW) }
+    var recenterRequest by remember { mutableIntStateOf(0) }
+    var followCameraAnimationRunning by remember { mutableStateOf(false) }
+    var expectedFollowCamera by remember { mutableStateOf<CameraPosition?>(null) }
+    var mapLoaded by remember { mutableStateOf(false) }
+    val directionalLocationIcon = remember(context, mapLoaded) {
+        if (mapLoaded) createNavigationLocationIcon(context, directional = true) else null
+    }
+    val stationaryLocationIcon = remember(context, mapLoaded) {
+        if (mapLoaded) createNavigationLocationIcon(context, directional = false) else null
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -266,41 +300,97 @@ fun NavigationScreen(
         }
     }
 
-    val navigationIsActive = navigationState is NavigationState.Navigating ||
-        navigationState is NavigationState.Deviation ||
-        navigationState is NavigationState.Arrived
+    val hasActiveNavigation = navigationState is NavigationState.Navigating ||
+        navigationState is NavigationState.Deviation
 
-    LaunchedEffect(routePreview?.polyline, navigationIsActive) {
-        if (navigationIsActive) return@LaunchedEffect
-        val points = routePreview?.polyline?.let(::decodeEncodedPolyline).orEmpty()
-        if (points.size > 1) {
-            val bounds = LatLngBounds.builder().apply {
-                points.forEach { point -> include(point) }
-            }.build()
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 96))
-        }
+    LaunchedEffect(hasActiveNavigation) {
+        cameraMode = NavigationCameraPolicy.modeAfterNavigationChange(
+            hasActiveNavigation,
+            cameraMode
+        )
     }
+    val cameraOwner = NavigationCameraPolicy.resolveOwner(
+        isNavigationActive = hasActiveNavigation,
+        hasArrived = navigationState is NavigationState.Arrived,
+        mode = cameraMode,
+        hasRoutePreview = routePreview != null
+    )
 
-    LaunchedEffect(navigationState, acceptedLocation, heading, locationQuality) {
-        val location = acceptedLocation
-        val isNavigationActive = navigationState is NavigationState.Navigating ||
-            navigationState is NavigationState.Deviation
-        if (
-            isNavigationActive && location != null &&
-            locationQuality == NavigationManager.LocationQuality.GOOD
-        ) {
-            val currentCamera = cameraPositionState.position
-            val target = LatLng(location.latitude, location.longitude)
-            cameraPositionState.animate(
-                CameraUpdateFactory.newCameraPosition(
-                    CameraPosition.Builder(currentCamera)
-                        .target(target)
-                        .zoom(maxOf(currentCamera.zoom, NAVIGATION_CAMERA_ZOOM))
-                        .bearing(heading ?: currentCamera.bearing)
-                        .tilt(NAVIGATION_CAMERA_TILT)
-                        .build()
-                )
-            )
+    var followCameraInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(cameraOwner, routePreview?.polyline) {
+        when (cameraOwner) {
+            NavigationCameraOwner.ROUTE_OVERVIEW -> {
+                followCameraInitialized = false
+                val points = routePreview?.polyline?.let(::decodeEncodedPolyline).orEmpty()
+                if (points.size > 1) {
+                    val bounds = LatLngBounds.builder().apply {
+                        points.forEach { point -> include(point) }
+                    }.build()
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newLatLngBounds(bounds, ROUTE_OVERVIEW_PADDING_PX)
+                    )
+                }
+            }
+            NavigationCameraOwner.NAVIGATION_FOLLOW -> {
+                snapshotFlow {
+                    NavigationCameraInput(
+                        location = acceptedLocation,
+                        heading = heading,
+                        quality = locationQuality,
+                        recenterRequest = recenterRequest,
+                        screenHeightDp = configuration.screenHeightDp
+                    )
+                }
+                    .conflate()
+                    .collect { input ->
+                        val location = input.location
+                        val currentHeading = input.heading
+                        if (
+                            location != null &&
+                            input.quality == NavigationManager.LocationQuality.GOOD
+                        ) {
+                            val currentCamera = cameraPositionState.position
+                            val currentLocation = LatLng(location.latitude, location.longitude)
+                            val navigationZoom = maxOf(
+                                currentCamera.zoom,
+                                NAVIGATION_CAMERA_ZOOM
+                            )
+                            val target = currentHeading?.let {
+                                val lookAheadMeters = NavigationCameraPolicy.lookAheadMeters(
+                                    latitude = location.latitude,
+                                    screenHeightDp = input.screenHeightDp,
+                                    density = context.resources.displayMetrics.density,
+                                    zoom = navigationZoom
+                                )
+                                locationAhead(currentLocation, it, lookAheadMeters)
+                            } ?: currentLocation
+                            val targetCameraPosition = CameraPosition.Builder(currentCamera)
+                                .target(target)
+                                .zoom(navigationZoom)
+                                .bearing(currentHeading ?: currentCamera.bearing)
+                                .tilt(NAVIGATION_CAMERA_TILT)
+                                .build()
+                            expectedFollowCamera = targetCameraPosition
+                            val cameraUpdate = CameraUpdateFactory.newCameraPosition(
+                                targetCameraPosition
+                            )
+                            if (followCameraInitialized) {
+                                cameraPositionState.move(cameraUpdate)
+                            } else {
+                                followCameraAnimationRunning = true
+                                try {
+                                    cameraPositionState.animate(cameraUpdate)
+                                } finally {
+                                    followCameraAnimationRunning = false
+                                }
+                                followCameraInitialized = true
+                            }
+                            delay(CAMERA_FOLLOW_UPDATE_INTERVAL_MS)
+                        }
+                    }
+            }
+            NavigationCameraOwner.FREE_EXPLORE,
+            NavigationCameraOwner.NONE -> followCameraInitialized = false
         }
     }
 
@@ -323,7 +413,9 @@ fun NavigationScreen(
         viewModel.onPermissionResult(preciseLocationPermissionGranted)
 
         if (locationPermissionGranted) {
-            centerMapOnCurrentLocation()
+            if (!hasActiveNavigation && routePreview == null) {
+                centerMapOnCurrentLocation()
+            }
             if (!preciseLocationPermissionGranted) {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(
@@ -340,10 +432,41 @@ fun NavigationScreen(
         }
     }
 
+    LaunchedEffect(hasActiveNavigation) {
+        if (!hasActiveNavigation) return@LaunchedEffect
+        snapshotFlow {
+            Triple(
+                cameraPositionState.isMoving,
+                followCameraAnimationRunning,
+                Triple(
+                    cameraMode,
+                    cameraPositionState.position,
+                    expectedFollowCamera
+                )
+            )
+        }.collect { (isMoving, isProgrammaticAnimation, cameraState) ->
+            val (activeCameraMode, cameraPosition, expectedCameraPosition) = cameraState
+            if (
+                isMoving && !isProgrammaticAnimation &&
+                NavigationCameraPolicy.shouldPauseFollow(
+                    isCameraMoving = isMoving,
+                    isProgrammaticAnimation = isProgrammaticAnimation,
+                    mode = activeCameraMode,
+                    cameraDiffersFromFollowTarget =
+                        expectedCameraPosition?.let { cameraPosition.doesNotMatch(it) } != false
+                )
+            ) {
+                cameraMode = NavigationCameraMode.FREE_EXPLORE
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (locationPermissionGranted) {
             viewModel.onPermissionResult(preciseLocationPermissionGranted)
-            centerMapOnCurrentLocation()
+            if (!hasActiveNavigation && routePreview == null) {
+                centerMapOnCurrentLocation()
+            }
         } else {
             locationPermissionLauncher.launch(
                 arrayOf(
@@ -357,42 +480,61 @@ fun NavigationScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text("Navigation") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            Column {
-                FloatingActionButton(
-                    onClick = {
-                        if (locationPermissionGranted) {
-                            centerMapOnCurrentLocation()
-                        } else {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
+            if (!hasActiveNavigation) {
+                TopAppBar(
+                    title = { Text("Navigation") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back"
                             )
                         }
+                    }
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    if (!locationPermissionGranted) {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    } else if (hasActiveNavigation) {
+                        if (acceptedLocation != null &&
+                            locationQuality == NavigationManager.LocationQuality.GOOD
+                        ) {
+                            cameraMode = NavigationCameraPolicy.modeAfterRecenter(
+                                isNavigationActive = hasActiveNavigation
+                            )
+                            recenterRequest++
+                        } else {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    "Waiting for a fresh location before recentering."
+                                )
+                            }
+                        }
+                    } else {
+                        centerMapOnCurrentLocation()
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = if (cameraMode == NavigationCameraMode.FREE_EXPLORE) {
+                        "Resume navigation"
+                    } else {
+                        "My Location"
                     },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MyLocation,
-                        contentDescription = "My Location",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
     ) { paddingValues ->
@@ -406,7 +548,8 @@ fun NavigationScreen(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = mapProperties,
-                uiSettings = uiSettings
+                uiSettings = uiSettings,
+                onMapLoaded = { mapLoaded = true }
             ) {
                 val routeToDraw = routePreview ?: when (val state = navigationState) {
                     is NavigationState.Navigating -> state.route
@@ -441,12 +584,22 @@ fun NavigationScreen(
                     ?.takeIf { locationQuality == NavigationManager.LocationQuality.GOOD }
                     ?.let {
                         LatLng(it.latitude, it.longitude)
-                    } ?: oneShotLocation
+                    } ?: oneShotLocation.takeIf { !hasActiveNavigation }
                 markerLocation?.let { location ->
+                    val hasDirectionalHeading = hasActiveNavigation &&
+                        heading != null && locationQuality == NavigationManager.LocationQuality.GOOD
                     key(location) {
                         Marker(
                             state = rememberMarkerState(position = location),
-                            title = "Current location"
+                            title = "Current location",
+                            icon = if (hasDirectionalHeading) {
+                                directionalLocationIcon
+                            } else {
+                                stationaryLocationIcon
+                            },
+                            rotation = if (hasDirectionalHeading) heading ?: 0f else 0f,
+                            flat = true,
+                            anchor = Offset(0.5f, 0.5f)
                         )
                     }
                 }
@@ -971,6 +1124,8 @@ private fun formatDistance(meters: Int): String {
 
 private const val NAVIGATION_CAMERA_ZOOM = 17f
 private const val NAVIGATION_CAMERA_TILT = 45f
+private const val ROUTE_OVERVIEW_PADDING_PX = 96
+private const val CAMERA_FOLLOW_UPDATE_INTERVAL_MS = 100L
 private const val MAX_ROUTE_ORIGIN_AGE_MS = 5_000L
 private const val MAX_ROUTE_ORIGIN_ACCURACY_METERS = 50f
 
@@ -1115,3 +1270,84 @@ private fun decodeEncodedPolyline(encoded: String): List<LatLng> {
     }
     return points
 }
+
+private data class NavigationCameraInput(
+    val location: LocationData?,
+    val heading: Float?,
+    val quality: NavigationManager.LocationQuality,
+    val recenterRequest: Int,
+    val screenHeightDp: Int
+)
+
+private fun CameraPosition.doesNotMatch(expected: CameraPosition): Boolean {
+    val bearingDifference = kotlin.math.abs(
+        (bearing - expected.bearing + 540f) % 360f - 180f
+    )
+    return kotlin.math.abs(target.latitude - expected.target.latitude) > CAMERA_TARGET_TOLERANCE ||
+        kotlin.math.abs(target.longitude - expected.target.longitude) > CAMERA_TARGET_TOLERANCE ||
+        bearingDifference > CAMERA_BEARING_TOLERANCE_DEGREES ||
+        kotlin.math.abs(zoom - expected.zoom) > CAMERA_ZOOM_TOLERANCE ||
+        kotlin.math.abs(tilt - expected.tilt) > CAMERA_TILT_TOLERANCE_DEGREES
+}
+
+private fun locationAhead(location: LatLng, bearingDegrees: Float, distanceMeters: Double): LatLng {
+    val angularDistance = distanceMeters / EARTH_RADIUS_METERS
+    val bearing = Math.toRadians(bearingDegrees.toDouble())
+    val latitude = Math.toRadians(location.latitude)
+    val longitude = Math.toRadians(location.longitude)
+    val targetLatitude = asin(
+        sin(latitude) * cos(angularDistance) +
+            cos(latitude) * sin(angularDistance) * cos(bearing)
+    )
+    val targetLongitude = longitude + atan2(
+        sin(bearing) * sin(angularDistance) * cos(latitude),
+        cos(angularDistance) - sin(latitude) * sin(targetLatitude)
+    )
+    val normalizedLongitude = (Math.toDegrees(targetLongitude) + 540.0) % 360.0 - 180.0
+    return LatLng(Math.toDegrees(targetLatitude), normalizedLongitude)
+}
+
+private fun createNavigationLocationIcon(
+    context: Context,
+    directional: Boolean
+): BitmapDescriptor {
+    val size = (NAVIGATION_MARKER_SIZE_DP * context.resources.displayMetrics.density).toInt()
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val center = size / 2f
+    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = NAVIGATION_MARKER_BLUE
+        style = Paint.Style.FILL
+    }
+    val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = size * NAVIGATION_MARKER_OUTLINE_RATIO
+        strokeJoin = Paint.Join.ROUND
+    }
+
+    if (directional) {
+        val arrow = Path().apply {
+            moveTo(center, size * 0.06f)
+            lineTo(size * 0.9f, size * 0.9f)
+            lineTo(center, size * 0.68f)
+            lineTo(size * 0.1f, size * 0.9f)
+            close()
+        }
+        canvas.drawPath(arrow, outlinePaint)
+        canvas.drawPath(arrow, fillPaint)
+    } else {
+        canvas.drawCircle(center, center, size * 0.34f, outlinePaint)
+        canvas.drawCircle(center, center, size * 0.3f, fillPaint)
+    }
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+private const val EARTH_RADIUS_METERS = 6_371_000.0
+private const val CAMERA_TARGET_TOLERANCE = 0.0001
+private const val CAMERA_BEARING_TOLERANCE_DEGREES = 5f
+private const val CAMERA_ZOOM_TOLERANCE = 0.25f
+private const val CAMERA_TILT_TOLERANCE_DEGREES = 5f
+private const val NAVIGATION_MARKER_SIZE_DP = 48
+private const val NAVIGATION_MARKER_OUTLINE_RATIO = 0.1f
+private const val NAVIGATION_MARKER_BLUE = 0xFF1A73E8.toInt()

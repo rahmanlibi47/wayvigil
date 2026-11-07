@@ -25,6 +25,14 @@ Use a physical Android phone with USB debugging, precise location permission, wo
 | Motorcycle route uses two-wheeler mode and displays its safety warning | | |
 | Provider rejection for a requested mode shows an error without silently switching modes | | |
 | Starting navigation starts one location subscription and one ongoing notification | | |
+| Route preview camera gives way to navigation follow once, without a spin, snap, or competing route-fit animation | | |
+| Active navigation shows a heading-aware arrow; uncertain heading uses a neutral dot | | |
+| Map gestures enter free exploration and stop automatic follow; recenter restores follow using a fresh fix | | |
+| Current position stays below center with the next route segment visible above it | | |
+| Camera framing and controls remain usable in portrait and landscape | | |
+| Poor/stale GPS or unreliable compass readings do not rotate or move the follow camera | | |
+| Sensor loss and GPS recovery restore heading smoothly without stale marker/camera jumps | | |
+| Sensor listeners do not duplicate after repeated start, rotation, or resume and stop on end/arrival | | |
 | Maneuver text and distance update along a route; voice announces without repeating prompts | | |
 | Voice mute stops speech and remains muted after rotating the phone | | |
 | Invalid, inaccurate, or stale GPS fixes do not corrupt speed or route progress | | |
@@ -53,9 +61,22 @@ Use Android Studio **Profiler → Energy** if available. Compare an idle baselin
 | Idle map baseline 2 | | | 15 min | |
 | Active navigation 2 | | | 15 min | |
 
+## Camera and sensor observations
+
+| Scenario | Result | Observation (heading lag, camera jump, marker behavior, sensor fallback) |
+| --- | --- | --- |
+| Portrait, stationary start | | |
+| Portrait, moving and turning | | |
+| Landscape, active follow | | |
+| Free explore and recenter | | |
+| Temporary GPS loss and recovery | | |
+| Compass unavailable/unreliable fallback, if testable | | |
+
 ## Final review
 
 - [ ] All applicable functional scenarios pass on the physical device.
+- [ ] Camera ownership, current-position marker, and portrait/landscape framing pass.
+- [ ] Sensor lifecycle and GPS/heading recovery pass without stale values or duplicate subscriptions.
 - [ ] Battery results and test conditions are recorded above.
 - [ ] No API keys or provider credentials appear in Android artifacts, logs, or user-visible errors.
 - [ ] Any provider route coverage limitations are disclosed to the user.

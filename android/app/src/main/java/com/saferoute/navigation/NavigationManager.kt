@@ -4,9 +4,16 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.GeomagneticField
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Handler
 import android.os.Looper
+import android.view.Surface
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -19,12 +26,12 @@ import com.saferoute.data.model.NavigationState
 import com.saferoute.data.model.Route
 import com.saferoute.service.LocationTrackingService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Central manager for navigation state and location updates.
@@ -53,6 +60,27 @@ class NavigationManager @Inject constructor(
     private val _locationQuality = MutableStateFlow(LocationQuality.SEARCHING)
     val locationQuality: StateFlow<LocationQuality> = _locationQuality.asStateFlow()
 
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+    private val accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private val magnetometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+    private val headingEstimator = HeadingEstimator()
+    private val accelerometerValues = FloatArray(3)
+    private val magneticFieldValues = FloatArray(3)
+    private val rotationMatrix = FloatArray(9)
+    private val displayRotationMatrix = FloatArray(9)
+    private val orientationValues = FloatArray(3)
+    private var hasAccelerometerValues = false
+    private var hasMagneticFieldValues = false
+    private var accelerometerUpdatedAt = 0L
+    private var magneticFieldUpdatedAt = 0L
+    private var latestCourseDegrees: Float? = null
+    private var latestCourseAccuracyDegrees: Float? = null
+    private var magneticDeclinationDegrees = 0f
+    private val unreliableSensorTypes = mutableSetOf<Int>()
+    private var orientationSensorsRegistered = false
+
     // Navigation logic components
     private val speedCalculator = SpeedCalculator()
     private val routeMatcher = RouteMatcher()
@@ -63,6 +91,52 @@ class NavigationManager @Inject constructor(
     private var locationCallback: LocationCallback? = null
     private var isTracking = false
     private var trackingStartedAt = 0L
+    private val orientationSensorListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (!isTracking) return
+            if (
+                event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE ||
+                event.sensor.type in unreliableSensorTypes
+            ) {
+                resetFallbackSensorValue(event.sensor.type)
+                clearUnreliableDeviceHeading()
+                return
+            }
+            when (event.sensor.type) {
+                Sensor.TYPE_ROTATION_VECTOR -> {
+                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                }
+                Sensor.TYPE_ACCELEROMETER -> {
+                    event.values.copyInto(accelerometerValues)
+                    hasAccelerometerValues = true
+                    accelerometerUpdatedAt = System.currentTimeMillis()
+                    updateFallbackOrientation(rotationMatrix)
+                    return
+                }
+                Sensor.TYPE_MAGNETIC_FIELD -> {
+                    event.values.copyInto(magneticFieldValues)
+                    hasMagneticFieldValues = true
+                    magneticFieldUpdatedAt = System.currentTimeMillis()
+                    updateFallbackOrientation(rotationMatrix)
+                    return
+                }
+                else -> return
+            }
+            publishDeviceHeading(rotationMatrix, System.currentTimeMillis())
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+            if (!isTracking) return
+            val sensorType = sensor?.type ?: return
+            if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
+                unreliableSensorTypes += sensorType
+                resetFallbackSensorValue(sensorType)
+                clearUnreliableDeviceHeading()
+            } else {
+                unreliableSensorTypes -= sensorType
+            }
+        }
+    }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val staleLocationCheck = object : Runnable {
         override fun run() {
@@ -72,6 +146,10 @@ class NavigationManager @Inject constructor(
             if (System.currentTimeMillis() - lastUpdateTime > LOCATION_STALE_AFTER_MS) {
                 _locationQuality.value = LocationQuality.STALE
                 _currentSpeed.value = speedCalculator.getFilteredSpeed()
+                headingEstimator.reset()
+                _heading.value = null
+                latestCourseDegrees = null
+                latestCourseAccuracyDegrees = null
             }
             mainHandler.postDelayed(this, LOCATION_QUALITY_CHECK_INTERVAL_MS)
         }
@@ -95,13 +173,25 @@ class NavigationManager @Inject constructor(
             ContextCompat.startForegroundService(context, serviceIntent)
             isTracking = true
             trackingStartedAt = System.currentTimeMillis()
+            _currentLocation.value = null
+            _currentSpeed.value = 0f
+            headingEstimator.reset()
+            _heading.value = null
+            latestCourseDegrees = null
+            latestCourseAccuracyDegrees = null
+            unreliableSensorTypes.clear()
+            startOrientationSensors()
             _locationQuality.value = LocationQuality.SEARCHING
             mainHandler.removeCallbacks(staleLocationCheck)
             mainHandler.postDelayed(staleLocationCheck, LOCATION_QUALITY_CHECK_INTERVAL_MS)
-            startDirectLocationUpdates()
+            if (startDirectLocationUpdates()) {
+                true
+            } else {
+                stopLocationTracking()
+                false
+            }
         } catch (e: SecurityException) {
-            isTracking = false
-            context.stopService(serviceIntent)
+            stopLocationTracking()
             false
         }
     }
@@ -111,14 +201,20 @@ class NavigationManager @Inject constructor(
      */
     private fun stopLocationTracking() {
         mainHandler.removeCallbacks(staleLocationCheck)
-        if (!isTracking) return
-
+        val wasTracking = isTracking
+        isTracking = false
         stopDirectLocationUpdates()
+        stopOrientationSensors()
+        headingEstimator.reset()
+        _heading.value = null
+        latestCourseDegrees = null
+        latestCourseAccuracyDegrees = null
+        unreliableSensorTypes.clear()
+        if (!wasTracking) return
 
         val serviceIntent = Intent(context, LocationTrackingService::class.java)
         context.stopService(serviceIntent)
 
-        isTracking = false
         _locationQuality.value = LocationQuality.SEARCHING
         speedCalculator.clear()
         _currentSpeed.value = 0f
@@ -191,7 +287,26 @@ class NavigationManager @Inject constructor(
 
         _locationQuality.value = LocationQuality.GOOD
         _currentLocation.value = locationData
-        _heading.value = if (location.hasBearing()) location.bearing else null
+        magneticDeclinationDegrees = GeomagneticField(
+            locationData.latitude.toFloat(),
+            locationData.longitude.toFloat(),
+            locationData.altitude.toFloat(),
+            System.currentTimeMillis()
+        ).declination
+        val course = location.bearing.takeIf { location.hasBearing() }
+        val courseAccuracy = if (location.hasBearingAccuracy()) {
+            location.bearingAccuracyDegrees
+        } else {
+            null
+        }
+        latestCourseDegrees = course
+        latestCourseAccuracyDegrees = courseAccuracy
+        _heading.value = headingEstimator.update(
+            courseDegrees = course,
+            courseAccuracyDegrees = courseAccuracy,
+            speedMetersPerSecond = location.speed,
+            timestamp = location.time
+        )
 
         // Update speed with filtering
         val filteredSpeed = speedCalculator.addLocation(locationData)
@@ -296,9 +411,7 @@ class NavigationManager @Inject constructor(
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
-                    updateLocation(location)
-                }
+                if (isTracking) result.lastLocation?.let(::updateLocation)
             }
         }
 
@@ -329,6 +442,138 @@ class NavigationManager @Inject constructor(
         locationCallback = null
     }
 
+    private fun startOrientationSensors() {
+        if (!isTracking || orientationSensorsRegistered) return
+
+        orientationSensorsRegistered = rotationVectorSensor?.let {
+            sensorManager.registerListener(
+                orientationSensorListener,
+                it,
+                ORIENTATION_SENSOR_DELAY_MICROS
+            )
+        } ?: false
+        if (orientationSensorsRegistered) return
+
+        val accelerometerRegistered = accelerometerSensor?.let {
+            sensorManager.registerListener(
+                orientationSensorListener,
+                it,
+                ORIENTATION_SENSOR_DELAY_MICROS
+            )
+        } ?: false
+        val magnetometerRegistered = magnetometerSensor?.let {
+            sensorManager.registerListener(
+                orientationSensorListener,
+                it,
+                ORIENTATION_SENSOR_DELAY_MICROS
+            )
+        } ?: false
+        orientationSensorsRegistered = accelerometerRegistered && magnetometerRegistered
+        if (!orientationSensorsRegistered) {
+            sensorManager.unregisterListener(orientationSensorListener)
+        }
+    }
+
+    private fun stopOrientationSensors() {
+        sensorManager.unregisterListener(orientationSensorListener)
+        orientationSensorsRegistered = false
+        hasAccelerometerValues = false
+        hasMagneticFieldValues = false
+        accelerometerUpdatedAt = 0L
+        magneticFieldUpdatedAt = 0L
+        accelerometerValues.fill(0f)
+        magneticFieldValues.fill(0f)
+    }
+
+    private fun updateFallbackOrientation(rotationMatrix: FloatArray) {
+        if (!hasAccelerometerValues || !hasMagneticFieldValues) return
+        val now = System.currentTimeMillis()
+        if (
+            now - accelerometerUpdatedAt !in 0..ORIENTATION_SENSOR_MAX_AGE_MS ||
+            now - magneticFieldUpdatedAt !in 0..ORIENTATION_SENSOR_MAX_AGE_MS
+        ) {
+            return
+        }
+        if (SensorManager.getRotationMatrix(
+                rotationMatrix,
+                null,
+                accelerometerValues,
+                magneticFieldValues
+            )
+        ) {
+            publishDeviceHeading(rotationMatrix, System.currentTimeMillis())
+        }
+    }
+
+    private fun resetFallbackSensorValue(sensorType: Int) {
+        when (sensorType) {
+            Sensor.TYPE_ACCELEROMETER -> {
+                hasAccelerometerValues = false
+                accelerometerUpdatedAt = 0L
+                accelerometerValues.fill(0f)
+            }
+            Sensor.TYPE_MAGNETIC_FIELD -> {
+                hasMagneticFieldValues = false
+                magneticFieldUpdatedAt = 0L
+                magneticFieldValues.fill(0f)
+            }
+        }
+    }
+
+    private fun publishDeviceHeading(rotationMatrix: FloatArray, timestamp: Long) {
+        val axes = when (windowManager.defaultDisplay.rotation) {
+            Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
+            Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
+            Surface.ROTATION_270 -> SensorManager.AXIS_MINUS_Y to SensorManager.AXIS_X
+            Surface.ROTATION_0 -> SensorManager.AXIS_X to SensorManager.AXIS_Y
+            else -> SensorManager.AXIS_X to SensorManager.AXIS_Y
+        }
+        if (!SensorManager.remapCoordinateSystem(
+                rotationMatrix,
+                axes.first,
+                axes.second,
+                displayRotationMatrix
+            )
+        ) {
+            return
+        }
+        SensorManager.getOrientation(displayRotationMatrix, orientationValues)
+        val magneticHeading = Math.toDegrees(orientationValues[0].toDouble()).toFloat()
+        val location = _currentLocation.value ?: return
+        if (
+            _locationQuality.value != LocationQuality.GOOD ||
+            System.currentTimeMillis() - location.timestamp !in 0..LOCATION_STALE_AFTER_MS
+        ) {
+            return
+        }
+        headingEstimator.updateDeviceHeading(
+            magneticHeading + magneticDeclinationDegrees,
+            timestamp
+        )
+        val speed = _currentLocation.value?.speed ?: 0f
+        _heading.value = headingEstimator.update(
+            courseDegrees = latestCourseDegrees,
+            courseAccuracyDegrees = latestCourseAccuracyDegrees,
+            speedMetersPerSecond = speed,
+            timestamp = timestamp
+        )
+    }
+
+    private fun clearUnreliableDeviceHeading() {
+        headingEstimator.clearDeviceHeading()
+        val location = _currentLocation.value
+        _heading.value = if (location == null || _locationQuality.value != LocationQuality.GOOD) {
+            null
+        } else {
+            headingEstimator.update(
+                courseDegrees = latestCourseDegrees,
+                courseAccuracyDegrees = latestCourseAccuracyDegrees,
+                speedMetersPerSecond = location.speed,
+                timestamp = System.currentTimeMillis()
+            )
+        }
+    }
+
     /**
      * Checks if location permission is granted
      */
@@ -357,5 +602,7 @@ class NavigationManager @Inject constructor(
         private const val LOCATION_STALE_AFTER_MS = 5000L
         private const val LOCATION_QUALITY_CHECK_INTERVAL_MS = 2000L
         private const val FUTURE_TIMESTAMP_TOLERANCE_MS = 2000L
+        private const val ORIENTATION_SENSOR_DELAY_MICROS = 50_000
+        private const val ORIENTATION_SENSOR_MAX_AGE_MS = 2000L
     }
 }
